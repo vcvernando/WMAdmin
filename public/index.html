@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Selling PO · WM Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">WM</span>
+      <div>
+        <h1>Selling PO</h1>
+        <p class="sub">Update Penjualan COS · <span id="asOf">memuat…</span></p>
+      </div>
+    </div>
+    <div class="top-actions no-print">
+      <button id="btnRefresh" class="btn ghost" title="Muat ulang data">⟳ Refresh</button>
+      <button id="btnCsv" class="btn ghost">⬇ CSV</button>
+      <button id="btnPrint" class="btn primary">🖨 Print</button>
+    </div>
+  </header>
+
+  <!-- Judul khusus print -->
+  <section class="print-head print-only">
+    <h2>Laporan Selling PO</h2>
+    <p id="printMeta"></p>
+  </section>
+
+  <main>
+    <!-- KPI -->
+    <section class="kpis" id="kpis"></section>
+
+    <!-- Mini charts -->
+    <section class="charts">
+      <article class="card chart-card">
+        <header><h3>Status</h3><span class="hint no-print">klik untuk filter</span></header>
+        <div class="chart" id="chartStatus"></div>
+      </article>
+      <article class="card chart-card">
+        <header><h3>Request by</h3><span class="hint no-print">klik untuk filter</span></header>
+        <div class="chart" id="chartBy"></div>
+      </article>
+      <article class="card chart-card">
+        <header><h3>Kelengkapan dokumen (PO aktif)</h3></header>
+        <div class="chart" id="chartDocs"></div>
+      </article>
+      <article class="card chart-card wide">
+        <header><h3>PO per bulan</h3><span class="hint no-print">klik untuk filter</span></header>
+        <div class="bars" id="chartMonth"></div>
+      </article>
+    </section>
+
+    <!-- Filters -->
+    <section class="card filters no-print">
+      <div class="search">
+        <span>🔍</span>
+        <input id="q" type="search" placeholder="Cari No PO, customer, COS, GP, catatan…" autocomplete="off" />
+      </div>
+      <div class="filter-row">
+        <label>Tampilan
+          <select id="fView">
+            <option value="aktif">Aktif (belum selesai)</option>
+            <option value="all">Semua PO</option>
+            <option value="selesai">Selesai</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="fStatus"><option value="">Semua status</option></select>
+        </label>
+        <label>Request by
+          <select id="fBy"><option value="">Semua</option></select>
+        </label>
+        <label>Customer
+          <select id="fCustomer"><option value="">Semua customer</option></select>
+        </label>
+        <label>Bulan
+          <select id="fMonth"><option value="">Semua bulan</option></select>
+        </label>
+        <label>Dari
+          <input id="fFrom" type="date" />
+        </label>
+        <label>Sampai
+          <input id="fTo" type="date" />
+        </label>
+      </div>
+      <div class="chips" id="flagChips">
+        <button class="chip" data-flag="noCos">Belum ada COS</button>
+        <button class="chip" data-flag="noPosting">Belum posting COS</button>
+        <button class="chip" data-flag="noGp">Belum ada No. GP</button>
+        <button class="chip" data-flag="indent">Unit indent</button>
+        <button class="chip" data-flag="cek">Perlu cek</button>
+        <button class="chip" data-flag="old">Umur &gt; 30 hari</button>
+        <button id="btnReset" class="chip reset">✕ Reset filter</button>
+      </div>
+    </section>
+
+    <!-- Summary per Request by -->
+    <section class="card">
+      <header class="card-head">
+        <h3>Ringkasan per Request by</h3>
+        <span class="hint">mengikuti filter aktif</span>
+      </header>
+      <div class="table-wrap">
+        <table class="summary" id="summaryTable"></table>
+      </div>
+    </section>
+
+    <!-- Listing -->
+    <section class="card flow">
+      <header class="card-head">
+        <h3>Daftar PO <span class="count" id="rowCount"></span></h3>
+        <div class="legend">
+          <span class="lg red"></span>Ditolak: dicentang tapi belum lengkap
+          <span class="lg orange"></span>COS / Posting / No. GP kosong
+          <span class="lg yellow"></span>Unit indent berisi "perlu cek"
+        </div>
+      </header>
+      <div class="table-wrap">
+        <table class="listing" id="listing">
+          <thead>
+            <tr>
+              <th data-sort="sheet_row" class="num">#</th>
+              <th data-sort="request_date">Request Date</th>
+              <th data-sort="request_by">Req by</th>
+              <th data-sort="no_po">No PO</th>
+              <th data-sort="customer">Customer</th>
+              <th data-sort="project">Project</th>
+              <th>Details</th>
+              <th data-sort="cos">COS</th>
+              <th data-sort="posting_cos">Posting COS</th>
+              <th data-sort="no_gp">No. GP</th>
+              <th>Progres / Unit indent</th>
+              <th>Notes</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="age" class="num">Umur</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="empty" hidden>Tidak ada PO yang cocok dengan filter.</p>
+    </section>
+  </main>
+
+  <!-- Detail drawer -->
+  <aside class="drawer no-print" id="drawer" aria-hidden="true">
+    <div class="drawer-panel">
+      <button class="close" id="drawerClose" aria-label="Tutup">✕</button>
+      <div id="drawerBody"></div>
+    </div>
+  </aside>
+
+  <footer class="foot no-print">Sumber utama: Google Sheet "Update Penjualan COS : Daily" tab Selling PO (diisi otomatis dari email Outlook) → disinkronkan ke Supabase. Ubah data di Google Sheet, bukan di sini.</footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
