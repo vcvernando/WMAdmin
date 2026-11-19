@@ -1,9 +1,13 @@
 # WM Admin — Selling PO
 
-Dashboard listing **Selling PO** (pengganti tab *Selling PO* & *Selling PO - Aktif* di Google Sheet
-"Update Penjualan COS : Daily"). Static site di Vercel, data di Supabase.
+Dashboard **Selling PO** (pengganti tab *Selling PO* & *Selling PO - Aktif* di Google Sheet
+"Update Penjualan COS : Daily"). Static site di Vercel, **Supabase adalah data utama** (sync dari Google Sheet sudah dimatikan).
 
 ## Fitur
+- Login (username atau email) & Register (Nama, Email, Telepon, Password). Akun baru **menunggu persetujuan admin**; admin menyetujui lewat tombol 👥 Pengguna
+- Layout 16:9: satu layar penuh tanpa scroll halaman (tabel & reminder scroll di dalam kartunya sendiri)
+- **Reminder Pengiriman** dari kolom *Target kirim*: Terlambat / Hari ini / H-1..H-3 / Belum ada target, aktif sampai *Ceklis Selesai* dicentang (PO canceled tidak diingatkan)
+- Kolom Aksi: View, Edit (semua akun disetujui), Hapus (khusus admin); tombol ＋ Tambah PO
 - KPI: Total aktif, Belum ada COS, Belum posting COS, Belum ada No. GP, Perlu cek, Dicentang belum lengkap, Umur > 30 hari, Total PO (klik = filter)
 - Mini pie chart: Status, Request by, Kelengkapan dokumen; bar chart PO per bulan (klik = filter)
 - Pencarian teks di semua kolom (tekan `/` untuk fokus ke kotak cari)
@@ -34,6 +38,13 @@ supabase/migrations/  # skema tabel selling_po + RLS
 vercel.json
 ```
 
-## Keamanan
-Tabel `selling_po` memakai RLS: publik (publishable key) **hanya bisa membaca**. Insert/update/delete
-belum dibuka — tahap berikutnya: login Supabase Auth untuk admin.
+## Keamanan (RLS)
+| Siapa | selling_po | profiles |
+|---|---|---|
+| Belum login (anon) | tidak bisa apa-apa | tidak bisa apa-apa |
+| Login, status *pending/rejected* | tidak bisa membaca | hanya profil sendiri |
+| Login, *approved* (user) | baca, tambah, edit | hanya profil sendiri |
+| Login, *approved* (admin) | baca, tambah, edit, **hapus** | semua; setujui/tolak, ubah peran |
+
+Akun username (mis. `admin`) memakai email sintetis `<username>@wmadmin.local` (lihat `USERNAME_DOMAIN` di `public/config.js`).
+Fungsi `sync_selling_po` sekarang selalu gagal dengan pesan "sync dinonaktifkan" agar job lama tidak menimpa data.
