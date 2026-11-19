@@ -194,12 +194,13 @@
 
   function currentKpiKey() {
     const f = [...state.flags];
+    if (state.view === "all" && !state.flags.size && state.status === "Dicentang belum lengkap"
+      && !state.by && !state.customer && !state.month && !state.q && !state.from && !state.to) return "red";
     const clean = !state.status && !state.by && !state.customer && !state.month && !state.q && !state.from && !state.to;
     if (!clean) return "";
     if (state.view === "all" && !f.length) return "all";
     if (state.view === "aktif" && !f.length) return "aktif";
     if (state.view === "aktif" && f.length === 1) return f[0];
-    if (state.view === "all" && f.length === 0 && state.status) return "";
     return "";
   }
 
@@ -494,6 +495,7 @@
       const key = th.dataset.sort;
       state.sort = { key, dir: state.sort.key === key && state.sort.dir === "asc" ? "desc" : "asc" };
       renderTable(sorted(filtered()));
+      saveState();
     }));
     $("#listing tbody").addEventListener("click", (e) => {
       const tr = e.target.closest("tr[data-id]"); if (tr) openDrawer(+tr.dataset.id);
@@ -548,7 +550,7 @@
       ["status", "Status"], ["age", "Umur (hari)"],
     ];
     const q = (v) => { const s = v == null ? "" : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const csv = [cols.map((c) => c[1]).join(","), ...rows.map((r) => cols.map(([k]) => q(r[k])).join(","))].join("\n");
+    const csv = [cols.map((c) => c[1]).join(","), ...rows.map((r) => cols.map(([k]) => q(k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : r[k])).join(","))].join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
