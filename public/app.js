@@ -665,19 +665,19 @@
       const prog = [r.progres, r.notes].filter((v) => !blank(v)).join(" · ");
       const docOrange = r.aktif && (r.noCos || r.noGp || r.noPosting);
       return `<tr class="${r.tone}" data-id="${r.id}">
-        <td>${r.request_date ? fmtDateShort(r.request_date) : `<span class="missing">–</span>`}</td>
-        <td><span class="ell" title="${esc(r.request_by)}">${blank(r.request_by) ? dash : esc(r.request_by)}</span></td>
-        <td class="po"><span class="ell" title="${esc(r.no_po)}">${r.noPo ? `<span class="missing">Belum ada</span>` : esc(r.no_po)}</span></td>
-        <td><span class="ell" title="${esc(r.customer)}">${blank(r.customer) ? dash : esc(r.customer)}</span>
+        <td class="c-date">${r.request_date ? fmtDateShort(r.request_date) : `<span class="missing">–</span>`}</td>
+        <td class="c-by"><span class="ell" title="${esc(r.request_by)}">${blank(r.request_by) ? dash : esc(r.request_by)}</span></td>
+        <td class="po c-po"><span class="ell" title="${esc(r.no_po)}">${r.noPo ? `<span class="missing">Belum ada</span>` : esc(r.no_po)}</span></td>
+        <td class="c-cust"><span class="ell" title="${esc(r.customer)}">${blank(r.customer) ? dash : esc(r.customer)}</span>
             <span class="ell sub2" title="${esc(r.project)}">${esc(r.project || "")}</span></td>
-        <td class="num" title="${r.nilai_po != null ? fmtRp(r.nilai_po) : "Nilai PO belum diisi"}">${r.nilai_po != null ? fmtNum(r.nilai_po) : dash}</td>
-        <td class="${docOrange ? "cell-orange" : ""}">
+        <td class="num c-nilai" title="${r.nilai_po != null ? fmtRp(r.nilai_po) : "Nilai PO belum diisi"}">${r.nilai_po != null ? fmtNum(r.nilai_po) : dash}</td>
+        <td class="c-docs ${docOrange ? "cell-orange" : ""}">
             <span class="ell" title="COS ${esc(r.cos)}${r.posting_cos ? ` · posting ${esc(r.posting_cos)}` : ""}">${r.noCos ? `<span class="missing">COS belum</span>` : esc(r.cos)}</span>
             <span class="ell sub2" title="No. GP ${esc(r.no_gp)}">${r.noGp ? `<span class="missing">GP belum</span>` : `GP ${esc(r.no_gp)}`}</span></td>
         <td class="c-prog"><div class="clip2" title="${esc(prog)}">${prog ? esc(prog) : dash}</div></td>
-        <td title="${r.targetAuto ? `Otomatis: Request date + ${SLA_HARI_KERJA} hari kerja` : r.tunda ? `Ditunda: ${esc(r.alasan_tunda)}` : "Target manual"}">${r.target ? fmtDateShort(r.target) : dash}${r.targetAuto ? `<span class="sub2"> auto</span>` : ""}${r.kirim ? `<div>${kirimBadge(r)}${r.tunda ? ` <span class="badge b-purple">Ditunda</span>` : ""}</div>` : ""}</td>
-        <td><span class="badge ${STATUS[r.status].badge}">${r.status}</span>${tags ? `<div class="tags">${tags}</div>` : ""}</td>
-        <td class="num ${r.age > 30 ? "age-old" : ""}">${r.age != null ? `${r.age}hr` : dash}</td>
+        <td class="c-target" title="${r.targetAuto ? `Otomatis: Request date + ${SLA_HARI_KERJA} hari kerja` : r.tunda ? `Ditunda: ${esc(r.alasan_tunda)}` : "Target manual"}">${r.target ? fmtDateShort(r.target) : dash}${r.targetAuto ? `<span class="sub2"> auto</span>` : ""}${r.kirim ? `<div>${kirimBadge(r)}${r.tunda ? ` <span class="badge b-purple">Ditunda</span>` : ""}</div>` : ""}</td>
+        <td class="c-status"><span class="badge ${STATUS[r.status].badge}">${r.status}</span>${tags ? `<div class="tags">${tags}</div>` : ""}</td>
+        <td class="num c-age ${r.age > 30 ? "age-old" : ""}">${r.age != null ? `${r.age}hr` : dash}</td>
         <td class="no-print"><div class="acts">
           <button class="act view" data-act="view" title="View">${ICON.view}</button>
           <button class="act edit" data-act="edit" title="Edit">${ICON.edit}</button>
@@ -737,7 +737,7 @@
     $$(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === state.tab));
     $("#paneList").hidden = state.tab !== "list";
     $("#paneAnalytics").hidden = state.tab !== "analytics";
-    $("#legendList").hidden = state.tab !== "list";
+    $("#legendList").hidden = state.tab !== "list" || !secOn("legend");
     saveState();
   }
 
@@ -1066,10 +1066,79 @@
     } catch (_) { /* abaikan */ }
   }
 
+  // ---------- Pilihan tampilan (kolom & bagian dashboard), per browser ----------
+  const VIEW_KEY = "wm-view";
+  const VIEW_COLS = [
+    ["date", "Request date"], ["by", "Request by"], ["po", "No PO", true], ["cust", "Customer / Project"],
+    ["nilai", "Nilai PO (Rp)"], ["docs", "COS / No. GP"], ["prog", "Progres / Notes"], ["target", "Target kirim"],
+    ["status", "Status"], ["age", "Umur"],
+  ];
+  const VIEW_SECS = [
+    ["kpi", "Kotak KPI"], ["filters", "Filter & pencarian"], ["reminder", "Panel Reminder Pengiriman"], ["legend", "Legenda warna"],
+  ];
+  let view = { cols: {}, secs: {} };
+  function loadView() {
+    try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "null"); if (v) view = { cols: v.cols || {}, secs: v.secs || {} }; } catch (_) { /* abaikan */ }
+  }
+  function saveView() { try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (_) { /* abaikan */ } }
+  // Progres/Notes: default otomatis (tampil di layar >= 1440px), kolom lain default tampil
+  const colOn = (k) => (k in view.cols ? view.cols[k] : k === "prog" ? window.innerWidth >= 1440 : true);
+  const secOn = (k) => (k in view.secs ? view.secs[k] : true);
+
+  function applyView() {
+    let css = "";
+    VIEW_COLS.forEach(([k]) => {
+      if (!(k in view.cols)) return;
+      css += view.cols[k]
+        ? `.listing td.c-${k}, .listing th.c-${k} { display: table-cell !important; } .listing col.c-${k} { display: table-column !important; }\n`
+        : `.listing .c-${k} { display: none !important; }\n`;
+    });
+    $("#viewStyle").textContent = css;
+    $("#kpis").hidden = !secOn("kpi");
+    $("#filtersCard").hidden = !secOn("filters");
+    $("#reminder").hidden = !secOn("reminder");
+    $("#layout").classList.toggle("no-rem", !secOn("reminder"));
+    $("#legendList").hidden = !secOn("legend") || state.tab !== "list";
+    renderViewMenu();
+  }
+
+  function renderViewMenu() {
+    const box = (group, [k, label, locked]) => {
+      const on = group === "cols" ? colOn(k) : secOn(k);
+      return `<label class="check vp-item"><input type="checkbox" data-group="${group}" data-k="${k}" ${on ? "checked" : ""} ${locked ? "disabled" : ""}/> ${label}${locked ? ' <span class="hint">(wajib)</span>' : ""}</label>`;
+    };
+    $("#vpCols").innerHTML = VIEW_COLS.map((c) => box("cols", c)).join("");
+    $("#vpSecs").innerHTML = VIEW_SECS.map((c) => box("secs", c)).join("");
+  }
+
+  function bindView() {
+    const pop = $("#viewPop"), btn = $("#btnView");
+    const close = () => { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pop.hidden = !pop.hidden;
+      btn.setAttribute("aria-expanded", String(!pop.hidden));
+      if (!pop.hidden) renderViewMenu();
+    });
+    pop.addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("click", close);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+    pop.addEventListener("change", (e) => {
+      const i = e.target.closest("input[data-k]"); if (!i) return;
+      view[i.dataset.group][i.dataset.k] = i.checked;
+      saveView();
+      applyView();
+    });
+    $("#vpReset").addEventListener("click", () => { view = { cols: {}, secs: {} }; saveView(); applyView(); });
+  }
+
   // ---------- Start ----------
   restoreState();
+  loadView();
   bindAuth();
   bind();
+  bindView();
+  applyView();
   sb.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") { showScreen("auth"); showAuthForm("recover"); return; }
     if (event === "SIGNED_OUT") { onSession(null); return; }

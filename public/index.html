@@ -127,11 +127,12 @@
       <button class="btn primary" id="pendingBannerBtn" type="button">Buka Approve Akun</button>
     </div>
 
-    <div class="layout">
+    <style id="viewStyle"></style>
+    <div class="layout" id="layout">
       <main class="main">
         <section class="kpis" id="kpis"></section>
 
-        <section class="card filters no-print">
+        <section class="card filters no-print" id="filtersCard">
           <div class="filter-row">
             <label class="search" title="Tekan / untuk cari">
               <span aria-hidden="true">🔍</span>
@@ -166,10 +167,29 @@
               <button class="tab" data-tab="list" role="tab">Daftar PO <span class="count" id="rowCount"></span></button>
               <button class="tab" data-tab="analytics" role="tab">Analitik</button>
             </div>
-            <div class="legend" id="legendList">
-              <span class="lg red"></span>Dicentang belum lengkap
-              <span class="lg orange"></span>COS / Posting / GP kosong
-              <span class="lg yellow"></span>Perlu cek
+            <div class="head-right">
+              <div class="legend" id="legendList">
+                <span class="lg red"></span>Dicentang belum lengkap
+                <span class="lg orange"></span>COS / Posting / GP kosong
+                <span class="lg yellow"></span>Perlu cek
+              </div>
+              <div class="view-menu no-print">
+                <button type="button" class="btn light" id="btnView" aria-haspopup="true" aria-expanded="false" title="Pilih kolom & bagian dashboard yang ditampilkan">⚙ Tampilan</button>
+                <div class="view-pop" id="viewPop" hidden>
+                  <div class="vp-col">
+                    <h4>Kolom tabel</h4>
+                    <div id="vpCols"></div>
+                  </div>
+                  <div class="vp-col">
+                    <h4>Bagian dashboard</h4>
+                    <div id="vpSecs"></div>
+                  </div>
+                  <div class="vp-foot">
+                    <span class="hint">Tersimpan di browser ini</span>
+                    <button type="button" class="btn light" id="vpReset">Kembali ke default</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </header>
 
@@ -177,22 +197,22 @@
             <div class="table-wrap scroll">
               <table class="listing" id="listing">
                 <colgroup>
-                  <col style="width:78px" /><col style="width:56px" /><col style="width:112px" /><col />
-                  <col style="width:108px" /><col style="width:118px" /><col class="c-prog" /><col style="width:92px" /><col style="width:116px" />
-                  <col style="width:50px" /><col class="no-print" style="width:94px" />
+                  <col class="c-date" style="width:78px" /><col class="c-by" style="width:56px" /><col class="c-po" style="width:112px" /><col class="c-cust" />
+                  <col class="c-nilai" style="width:108px" /><col class="c-docs" style="width:118px" /><col class="c-prog" /><col class="c-target" style="width:92px" /><col class="c-status" style="width:116px" />
+                  <col class="c-age" style="width:50px" /><col class="no-print" style="width:94px" />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th data-sort="request_date">Request</th>
-                    <th data-sort="request_by">Req by</th>
-                    <th data-sort="no_po">No PO</th>
-                    <th data-sort="customer">Customer / Project</th>
-                    <th data-sort="nilai_po" class="num">Nilai PO (Rp)</th>
-                    <th data-sort="cos">COS / No. GP</th>
+                    <th data-sort="request_date" class="c-date">Request</th>
+                    <th data-sort="request_by" class="c-by">Req by</th>
+                    <th data-sort="no_po" class="c-po">No PO</th>
+                    <th data-sort="customer" class="c-cust">Customer / Project</th>
+                    <th data-sort="nilai_po" class="num c-nilai">Nilai PO (Rp)</th>
+                    <th data-sort="cos" class="c-docs">COS / No. GP</th>
                     <th class="c-prog">Progres / Notes</th>
-                    <th data-sort="target">Target kirim</th>
-                    <th data-sort="status">Status</th>
-                    <th data-sort="age" class="num">Umur</th>
+                    <th data-sort="target" class="c-target">Target kirim</th>
+                    <th data-sort="status" class="c-status">Status</th>
+                    <th data-sort="age" class="num c-age">Umur</th>
                     <th class="no-print act-col">Aksi</th>
                   </tr>
                 </thead>
