@@ -136,7 +136,7 @@ button { font: inherit; }
 .scroll { overflow: auto; }
 
 /* KPI */
-.kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.kpis { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 8px; }
 .kpi {
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
   padding: 7px 10px; cursor: pointer; text-align: left; color: inherit; border-left: 4px solid var(--accent, var(--brand)); min-width: 0;
@@ -144,7 +144,7 @@ button { font: inherit; }
 .kpi:hover { transform: translateY(-1px); }
 .kpi.active { outline: 2px solid var(--accent, var(--brand)); }
 .kpi .label { color: var(--muted); font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi .value { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.kpi .value { font-size: 20px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .note { display: none; }
 
 /* Filters */
@@ -180,6 +180,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 
 .listing { font-size: 12px; table-layout: fixed; }
 .listing td { overflow: hidden; }
+.listing td:first-child, .listing td.num { white-space: nowrap; }
 .listing tbody tr { cursor: pointer; }
 .listing tbody tr:hover td { background: #f5f8ff; }
 .listing .po { font-weight: 600; }
@@ -330,6 +331,11 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   #paneList .table-wrap { flex: 1; min-height: 0; overflow: auto; }
   #paneAnalytics { overflow: auto; display: block; }
 }
+/* Layar < 1440px (laptop 1280/1366): kolom Progres/Notes disembunyikan (tetap ada di View), sidebar lebih ramping */
+@media (min-width: 1100px) and (max-width: 1439px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 268px; }
+  .listing .c-prog { display: none; }
+}
 @media (min-width: 1600px) {
   body { font-size: 14px; }
   .layout { grid-template-columns: minmax(0, 1fr) 340px; }
@@ -365,7 +371,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   .main { display: block; }
   .card, .kpi { box-shadow: none; border-color: #ccc; padding: 6px; break-inside: avoid; }
   .card.flow { break-inside: auto; border: 0; padding: 0; display: block; }
-  .kpis { grid-template-columns: repeat(8, 1fr); gap: 6px; margin-bottom: 8px; }
+  .kpis { grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 8px; }
   .kpi .label { font-size: 9px; }
   .kpi .value { font-size: 15px; }
   .table-wrap, #paneList .table-wrap { overflow: visible; }

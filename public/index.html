@@ -177,9 +177,9 @@
             <div class="table-wrap scroll">
               <table class="listing" id="listing">
                 <colgroup>
-                  <col style="width:84px" /><col style="width:74px" /><col style="width:118px" /><col />
-                  <col style="width:136px" /><col /><col style="width:104px" /><col style="width:136px" />
-                  <col style="width:54px" /><col class="no-print" style="width:100px" />
+                  <col style="width:78px" /><col style="width:56px" /><col style="width:112px" /><col />
+                  <col style="width:108px" /><col style="width:118px" /><col class="c-prog" /><col style="width:92px" /><col style="width:116px" />
+                  <col style="width:50px" /><col class="no-print" style="width:94px" />
                 </colgroup>
                 <thead>
                   <tr>
@@ -187,8 +187,9 @@
                     <th data-sort="request_by">Req by</th>
                     <th data-sort="no_po">No PO</th>
                     <th data-sort="customer">Customer / Project</th>
+                    <th data-sort="nilai_po" class="num">Nilai PO (Rp)</th>
                     <th data-sort="cos">COS / No. GP</th>
-                    <th>Progres / Notes</th>
+                    <th class="c-prog">Progres / Notes</th>
                     <th data-sort="target">Target kirim</th>
                     <th data-sort="status">Status</th>
                     <th data-sort="age" class="num">Umur</th>
@@ -265,6 +266,7 @@
         <label>COS<input name="cos" /></label>
         <label>Nomor posting COS<input name="posting_cos" /></label>
         <label>No. GP<input name="no_gp" /></label>
+        <label>Nilai PO (Rp) <span class="hint">total sesuai PO, mis. 12.500.000</span><input name="nilai_po" inputmode="decimal" placeholder="0" /></label>
         <label class="hl">Target kirim <span class="hint">kosong = otomatis Request date + 5 hari kerja</span><input name="target_kirim" type="date" /></label>
         <label class="span2">Alasan belum bisa dikirim <span class="hint">wajib bila target melewati 5 hari kerja</span><textarea name="alasan_tunda" rows="2" placeholder="mis. unit indent dari vendor, menunggu DP customer, site belum siap"></textarea></label>
         <label class="span2">Progres / Unit indent<textarea name="progres" rows="2"></textarea></label>
