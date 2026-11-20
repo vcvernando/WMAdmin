@@ -133,7 +133,11 @@
     $("#btnUsers").hidden = me.role !== "admin";
     showScreen("app");
     await load();
-    if (me.role === "admin") refreshPendingCount();
+    if (me.role === "admin") {
+      refreshPendingCount();
+      clearInterval(pendingTimer);
+      pendingTimer = setInterval(refreshPendingCount, 60000);
+    }
   }
 
   function setPending(title, text) {
@@ -178,12 +182,13 @@
       e.preventDefault();
       const nama = $("#regNama").value.trim();
       const email = $("#regEmail").value.trim().toLowerCase();
-      const telepon = $("#regTelp").value.trim();
+      const telepon = $("#regTelp").value.trim().replace(/\s+/g, " ");
+      const telDigits = telepon.replace(/\D/g, "");
       const p1 = $("#regPass").value, p2 = $("#regPass2").value;
       if (!nama || !email || !telepon || !p1) return msg("#registerMsg", "Semua kolom wajib diisi.");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.endsWith(`@${CFG.USERNAME_DOMAIN}`)) return msg("#registerMsg", "Format email tidak valid.");
-      if (!/^\+?[0-9][0-9\s-]{7,18}$/.test(telepon)) return msg("#registerMsg", "Nomor telepon tidak valid (8–19 digit).");
-      if (p1.length < 8) return msg("#registerMsg", "Password minimal 8 karakter.");
+      if (!/^[+0-9][0-9\s().-]*$/.test(telepon) || telDigits.length < 8 || telDigits.length > 15) return msg("#registerMsg", "Nomor telepon tidak valid. Contoh: 0812 3456 7890 atau +62 812 3456 7890.");
+      if (p1.length < 6) return msg("#registerMsg", "Password minimal 6 karakter.");
       if (p1 !== p2) return msg("#registerMsg", "Ulangi password tidak sama.");
       const btn = $("#registerForm button[type=submit]"); btn.disabled = true;
       const { data, error } = await sb.auth.signUp({
@@ -196,13 +201,13 @@
       if (data.session) return onSession(data.session);
       showAuthForm("login");
       $("#loginUser").value = email;
-      msg("#loginMsg", "Pendaftaran berhasil. Konfirmasi email Anda lewat link di inbox, lalu tunggu persetujuan admin.", "ok");
+      msg("#loginMsg", "Pendaftaran berhasil. Akun Anda menunggu persetujuan admin. Setelah disetujui, Anda bisa langsung Sign in dengan email & password ini.", "ok");
     });
 
     $("#recoverForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const p = $("#newPass").value;
-      if (p.length < 8) return msg("#recoverMsg", "Password minimal 8 karakter.");
+      if (p.length < 6) return msg("#recoverMsg", "Password minimal 6 karakter.");
       const { error } = await sb.auth.updateUser({ password: p });
       if (error) return msg("#recoverMsg", authError(error));
       $("#newPass").value = "";
@@ -804,6 +809,7 @@
     $("#btnCsv").addEventListener("click", exportCsv);
     $("#btnRefresh").addEventListener("click", load);
     $("#btnUsers").addEventListener("click", openUsers);
+    $("#pendingBannerBtn").addEventListener("click", openUsers);
     $("#usersTable").addEventListener("click", onUserAction);
   }
 
@@ -910,16 +916,22 @@
   }
 
   // ---------- Pengguna (admin) ----------
+  let pendingTimer;
   async function refreshPendingCount() {
+    if (me?.role !== "admin") return;
     const { count } = await sb.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending");
     $("#pendingCount").hidden = !count;
     $("#pendingCount").textContent = count || "";
+    $("#pendingBanner").hidden = !count;
+    $("#pendingBannerText").textContent = count ? `${count} akun baru menunggu persetujuan Anda.` : "";
   }
 
   async function openUsers() {
     $("#usersModal").hidden = false;
     $("#usersTable").innerHTML = `<tbody><tr><td class="loading">Memuat…</td></tr></tbody>`;
-    const { data, error } = await sb.from("profiles").select("*").order("created_at", { ascending: false });
+    const { data: rows, error } = await sb.from("profiles").select("*").order("created_at", { ascending: false });
+    const order = { pending: 0, approved: 1, rejected: 2 };
+    const data = (rows || []).sort((a, b) => order[a.status] - order[b.status]);
     if (error) { $("#usersTable").innerHTML = `<tbody><tr><td><div class="error">${esc(authError(error))}</div></td></tr></tbody>`; return; }
     const st = { pending: "b-orange", approved: "b-green", rejected: "b-gray" };
     const stLabel = { pending: "Menunggu", approved: "Disetujui", rejected: "Ditolak" };
@@ -928,12 +940,12 @@
       <tbody>${data.map((u) => {
         const self = u.id === me.id;
         const btns = [];
-        if (u.status !== "approved") btns.push(`<button class="btn primary" data-u="${u.id}" data-do="approve">Setujui</button>`);
-        if (u.status !== "rejected" && !self) btns.push(`<button class="btn light" data-u="${u.id}" data-do="reject">Tolak</button>`);
+        if (u.status !== "approved") btns.push(`<button class="btn primary" data-u="${u.id}" data-do="approve">✓ Approve</button>`);
+        if (u.status !== "rejected" && !self) btns.push(`<button class="btn light" data-u="${u.id}" data-do="reject">✕ Tolak</button>`);
         if (u.status === "approved" && !self) btns.push(u.role === "admin"
           ? `<button class="btn light" data-u="${u.id}" data-do="user">Jadikan user</button>`
           : `<button class="btn light" data-u="${u.id}" data-do="admin">Jadikan admin</button>`);
-        return `<tr>
+        return `<tr class="${u.status === "pending" ? "row-yellow" : ""}">
           <td><strong>${esc(u.nama)}</strong>${self ? ` <span class="muted">(Anda)</span>` : ""}</td>
           <td>${esc(u.username || u.email)}</td>
           <td>${esc(u.telepon || "–")}</td>
@@ -947,16 +959,11 @@
 
   async function onUserAction(e) {
     const b = e.target.closest("[data-do]"); if (!b) return;
-    const patch = {
-      approve: { status: "approved", approved_at: new Date().toISOString(), approved_by: me.id },
-      reject: { status: "rejected" },
-      admin: { role: "admin" },
-      user: { role: "user" },
-    }[b.dataset.do];
+    if (b.dataset.do === "reject" && !confirm("Tolak akun ini? Pemilik akun tidak bisa masuk ke dashboard.")) return;
     b.disabled = true;
-    const { data, error } = await sb.from("profiles").update(patch).eq("id", b.dataset.u).select("id");
-    if (error || !data?.length) { b.disabled = false; return toast(`Gagal: ${error ? authError(error) : "tidak ada izin"}`, "err"); }
-    toast("Pengguna diperbarui.");
+    const { error } = await sb.rpc("admin_set_user", { p_id: b.dataset.u, p_action: b.dataset.do });
+    if (error) { b.disabled = false; return toast(`Gagal: ${authError(error)}`, "err"); }
+    toast({ approve: "Akun disetujui. User sudah bisa Sign in.", reject: "Akun ditolak.", admin: "Akun dijadikan admin.", user: "Akun dijadikan user." }[b.dataset.do]);
     openUsers();
     refreshPendingCount();
   }
