@@ -60,9 +60,9 @@
           <p class="auth-sub">Akun baru aktif setelah disetujui admin.</p>
           <label class="field plain"><input id="regNama" type="text" placeholder="Nama lengkap" autocomplete="name" required /></label>
           <label class="field plain"><input id="regEmail" type="email" placeholder="Email" autocomplete="email" required /></label>
-          <label class="field plain"><input id="regTelp" type="tel" placeholder="Telepon (mis. 0812xxxxxxx)" autocomplete="tel" required /></label>
+          <label class="field plain"><input id="regTelp" type="tel" placeholder="Telepon (mis. 0812 3456 7890)" autocomplete="tel" required /></label>
           <label class="field plain">
-            <input id="regPass" type="password" placeholder="Password (min. 8 karakter)" autocomplete="new-password" required />
+            <input id="regPass" type="password" placeholder="Password (min. 6 karakter)" autocomplete="new-password" required />
             <button type="button" class="show" data-toggle="regPass">SHOW</button>
           </label>
           <label class="field plain"><input id="regPass2" type="password" placeholder="Ulangi password" autocomplete="new-password" required /></label>
@@ -75,7 +75,7 @@
         <form id="recoverForm" class="auth-form" novalidate hidden>
           <h1>Password baru</h1>
           <p class="auth-sub">Masukkan password baru untuk akun Anda.</p>
-          <label class="field plain"><input id="newPass" type="password" placeholder="Password baru (min. 8 karakter)" autocomplete="new-password" required /></label>
+          <label class="field plain"><input id="newPass" type="password" placeholder="Password baru (min. 6 karakter)" autocomplete="new-password" required /></label>
           <p class="auth-msg" id="recoverMsg" role="alert"></p>
           <button class="btn-auth" type="submit">Simpan password</button>
         </form>
@@ -111,7 +111,7 @@
         <button id="btnRefresh" class="btn ghost" title="Muat ulang data">⟳</button>
         <button id="btnCsv" class="btn ghost">⬇ CSV</button>
         <button id="btnPrint" class="btn ghost">🖨 Print</button>
-        <button id="btnUsers" class="btn ghost" hidden>👥 Pengguna <span class="pill" id="pendingCount" hidden></span></button>
+        <button id="btnUsers" class="btn ghost" hidden title="Approve akun baru & kelola pengguna">✅ Approve Akun <span class="pill" id="pendingCount" hidden></span></button>
         <span class="who" id="who"></span>
         <button class="btn ghost" data-logout>Keluar</button>
       </div>
@@ -121,6 +121,11 @@
       <h2>Laporan Selling PO</h2>
       <p id="printMeta"></p>
     </section>
+
+    <div class="pending-banner no-print" id="pendingBanner" hidden>
+      <span>🔔 <strong id="pendingBannerText"></strong></span>
+      <button class="btn primary" id="pendingBannerBtn" type="button">Buka Approve Akun</button>
+    </div>
 
     <div class="layout">
       <main class="main">
@@ -280,7 +285,7 @@
   <div class="modal no-print" id="usersModal" hidden>
     <div class="modal-panel wide">
       <header class="modal-head">
-        <h2>Pengguna</h2>
+        <h2>Approve Akun &amp; Pengguna</h2>
         <button type="button" class="close" data-close aria-label="Tutup">✕</button>
       </header>
       <div class="table-wrap scroll users-wrap">

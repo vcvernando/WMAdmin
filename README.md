@@ -4,7 +4,8 @@ Dashboard **Selling PO** (pengganti tab *Selling PO* & *Selling PO - Aktif* di G
 "Update Penjualan COS : Daily"). Static site di Vercel, **Supabase adalah data utama** (sync dari Google Sheet sudah dimatikan).
 
 ## Fitur
-- Login (username atau email) & Register (Nama, Email, Telepon, Password). Akun baru **menunggu persetujuan admin**; admin menyetujui lewat tombol 👥 Pengguna
+- Login (username atau email) & Register (Nama, Email, Telepon, Password min. 6 karakter). Akun baru **menunggu persetujuan admin**;
+  admin melihat banner + angka di tombol **✅ Approve Akun**, lalu klik Approve/Tolak (fungsi `admin_set_user`). Approve sekaligus mengonfirmasi email akun
 - Layout 16:9: satu layar penuh tanpa scroll halaman (tabel & reminder scroll di dalam kartunya sendiri)
 - **Reminder Pengiriman**: target kirim otomatis = *Request date + 5 hari kerja* (Senin–Jumat; libur nasional belum dihitung).
   Target boleh dimundurkan lewat Edit hanya dengan *Alasan belum bisa dikirim*. Kotak: Terlambat / Hari ini / H-1..H-3 / Ditunda (ada alasan).
