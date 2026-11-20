@@ -53,9 +53,13 @@ Fungsi `sync_selling_po` sekarang selalu gagal dengan pesan "sync dinonaktifkan"
 
 ## Alur data dari email
 ```
-Outlook -> macro log CSV (laptop) -> tugas terjadwal "Update PO Penjualan (Selling PO)" -> Google Sheet (kotak masuk)
-        -> tugas terjadwal "Selling PO: email -> Supabase" -> public.ingest_selling_po() -> Supabase (data utama) -> dashboard
+Outlook -> macro log CSV (laptop) -> tugas terjadwal Cowork "Update PO Penjualan -> Supabase"
+        -> public.ingest_selling_po() -> Supabase (data utama) -> dashboard
 ```
-`ingest_selling_po(rows jsonb, source text)` hanya menambah PO baru dan mengisi kolom yang masih kosong. Isian dashboard,
-Ceklis Selesai, target kirim, dan alasan tidak pernah ditimpa; PO yang dihapus admin (tabel `selling_po_deleted`) tidak diimpor ulang;
-bentrok No PO dilaporkan sebagai "perlu cek". Fungsi ini tidak bisa dipanggil dari browser.
+Prompt tugas & cara membuatnya: [`docs/tugas-email-ke-supabase.md`](docs/tugas-email-ke-supabase.md).
+Waktu email terakhir yang diproses disimpan di `sync_log.email_terakhir` (pengganti tab "Log Proses").
+
+`ingest_selling_po(rows, source, email_terakhir, catatan)` hanya menambah PO baru dan mengisi kolom yang masih kosong.
+Isian dashboard, Ceklis Selesai, target kirim, dan alasan tidak pernah ditimpa; PO yang dihapus admin (`selling_po_deleted`)
+tidak diimpor ulang; data dari email tanpa No PO yang jelas ditolak (dilaporkan "perlu cek") agar tidak ganda.
+Fungsi ini tidak bisa dipanggil dari browser.
