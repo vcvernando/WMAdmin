@@ -6,7 +6,9 @@ Dashboard **Selling PO** (pengganti tab *Selling PO* & *Selling PO - Aktif* di G
 ## Fitur
 - Login (username atau email) & Register (Nama, Email, Telepon, Password). Akun baru **menunggu persetujuan admin**; admin menyetujui lewat tombol 👥 Pengguna
 - Layout 16:9: satu layar penuh tanpa scroll halaman (tabel & reminder scroll di dalam kartunya sendiri)
-- **Reminder Pengiriman** dari kolom *Target kirim*: Terlambat / Hari ini / H-1..H-3 / Belum ada target, aktif sampai *Ceklis Selesai* dicentang (PO canceled tidak diingatkan)
+- **Reminder Pengiriman**: target kirim otomatis = *Request date + 5 hari kerja* (Senin–Jumat; libur nasional belum dihitung).
+  Target boleh dimundurkan lewat Edit hanya dengan *Alasan belum bisa dikirim*. Kotak: Terlambat / Hari ini / H-1..H-3 / Ditunda (ada alasan).
+  Reminder aktif sampai *Ceklis Selesai* dicentang (PO canceled tidak diingatkan)
 - Kolom Aksi: View, Edit (semua akun disetujui), Hapus (khusus admin); tombol ＋ Tambah PO
 - KPI: Total aktif, Belum ada COS, Belum posting COS, Belum ada No. GP, Perlu cek, Dicentang belum lengkap, Umur > 30 hari, Total PO (klik = filter)
 - Mini pie chart: Status, Request by, Kelengkapan dokumen; bar chart PO per bulan (klik = filter)
@@ -48,3 +50,12 @@ vercel.json
 
 Akun username (mis. `admin`) memakai email sintetis `<username>@wmadmin.local` (lihat `USERNAME_DOMAIN` di `public/config.js`).
 Fungsi `sync_selling_po` sekarang selalu gagal dengan pesan "sync dinonaktifkan" agar job lama tidak menimpa data.
+
+## Alur data dari email
+```
+Outlook -> macro log CSV (laptop) -> tugas terjadwal "Update PO Penjualan (Selling PO)" -> Google Sheet (kotak masuk)
+        -> tugas terjadwal "Selling PO: email -> Supabase" -> public.ingest_selling_po() -> Supabase (data utama) -> dashboard
+```
+`ingest_selling_po(rows jsonb, source text)` hanya menambah PO baru dan mengisi kolom yang masih kosong. Isian dashboard,
+Ceklis Selesai, target kirim, dan alasan tidak pernah ditimpa; PO yang dihapus admin (tabel `selling_po_deleted`) tidak diimpor ulang;
+bentrok No PO dilaporkan sebagai "perlu cek". Fungsi ini tidak bisa dipanggil dari browser.

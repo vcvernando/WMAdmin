@@ -184,7 +184,7 @@
                     <th data-sort="customer">Customer / Project</th>
                     <th data-sort="cos">COS / No. GP</th>
                     <th>Progres / Notes</th>
-                    <th data-sort="target_kirim">Target kirim</th>
+                    <th data-sort="target">Target kirim</th>
                     <th data-sort="status">Status</th>
                     <th data-sort="age" class="num">Umur</th>
                     <th class="no-print act-col">Aksi</th>
@@ -227,7 +227,7 @@
       <aside class="card reminder no-print" id="reminder">
         <header class="card-head">
           <h3>🚚 Reminder Pengiriman</h3>
-          <span class="hint">sampai Ceklis Selesai dicentang</span>
+          <span class="hint">maks. 5 hari kerja dari Request date, sampai Ceklis Selesai dicentang</span>
         </header>
         <div class="rem-tiles" id="remTiles"></div>
         <div class="rem-list scroll" id="remList"></div>
@@ -260,7 +260,8 @@
         <label>COS<input name="cos" /></label>
         <label>Nomor posting COS<input name="posting_cos" /></label>
         <label>No. GP<input name="no_gp" /></label>
-        <label class="hl">Target kirim<input name="target_kirim" type="date" /></label>
+        <label class="hl">Target kirim <span class="hint">kosong = otomatis Request date + 5 hari kerja</span><input name="target_kirim" type="date" /></label>
+        <label class="span2">Alasan belum bisa dikirim <span class="hint">wajib bila target melewati 5 hari kerja</span><textarea name="alasan_tunda" rows="2" placeholder="mis. unit indent dari vendor, menunggu DP customer, site belum siap"></textarea></label>
         <label class="span2">Progres / Unit indent<textarea name="progres" rows="2"></textarea></label>
         <label class="span2">Notes<textarea name="notes" rows="2"></textarea></label>
         <label class="check span2"><input name="selesai" type="checkbox" /> Ceklis Selesai (Admin) — PO sudah terkirim &amp; dokumen lengkap</label>

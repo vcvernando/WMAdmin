@@ -7,7 +7,8 @@
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   const DAY = 86400000;
-  const FIELDS = ["request_date", "request_by", "no_po", "customer", "project", "details", "cos", "posting_cos", "no_gp", "target_kirim", "progres", "notes", "selesai"];
+  const FIELDS = ["request_date", "request_by", "no_po", "customer", "project", "details", "cos", "posting_cos", "no_gp", "target_kirim", "alasan_tunda", "progres", "notes", "selesai"];
+  const SLA_HARI_KERJA = 5; // target kirim otomatis = Request date + 5 hari kerja (Sen–Jum)
 
   // ---------- Supabase (sesi di localStorage bila "Remember me", selain itu sessionStorage) ----------
   const REMEMBER_KEY = "wm-remember";
@@ -42,7 +43,8 @@
     late:  { label: "Terlambat",        color: "#c62828", badge: "b-red" },
     today: { label: "Kirim hari ini",   color: "#d9730d", badge: "b-orange" },
     soon:  { label: "H-1 s/d H-3",      color: "#a68a00", badge: "b-yellow" },
-    none:  { label: "Belum ada target", color: "#5f6b7a", badge: "b-gray" },
+    tunda: { label: "Ditunda (ada alasan)", color: "#7a3ff2", badge: "b-purple" },
+    none:  { label: "Tanpa Request date", color: "#5f6b7a", badge: "b-gray" },
   };
 
   const state = {
@@ -289,11 +291,15 @@
     const age = aktif && d ? Math.floor((today - d) / DAY) : null;
     const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : "";
 
+    const autoTarget = r.request_date ? addWorkdays(r.request_date, SLA_HARI_KERJA) : null;
+    const target = r.target_kirim || autoTarget;
+    const targetAuto = !r.target_kirim && !!autoTarget;
+    const tunda = !blank(r.alasan_tunda);
     let kirim = "", sisa = null;
     if (listed && !r.selesai && !canceled) {
-      if (!r.target_kirim) kirim = "none";
+      if (!target) kirim = "none";
       else {
-        sisa = Math.round((new Date(r.target_kirim + "T00:00:00") - today) / DAY);
+        sisa = Math.round((new Date(target + "T00:00:00") - today) / DAY);
         kirim = sisa < 0 ? "late" : sisa === 0 ? "today" : sisa <= 3 ? "soon" : "later";
       }
     }
@@ -303,17 +309,29 @@
     else if (aktif && cek) tone = "row-yellow";
 
     const hay = [r.request_by, r.no_po, r.customer, r.project, r.details, r.cos, r.posting_cos, r.no_gp, r.progres, r.notes, status,
-      r.target_kirim ? fmtDate(r.target_kirim) : ""]
+      target ? fmtDate(target) : "", r.alasan_tunda]
       .filter(Boolean).join(" \u0001 ").toLowerCase();
 
-    return { ...r, status, aktif, ditolak, noPo, noCos, noPosting, noGp, cek, cekNote, indent, canceled, age, month, kirim, sisa, tone, hay, _d: d };
+    return { ...r, status, aktif, ditolak, noPo, noCos, noPosting, noGp, cek, cekNote, indent, canceled, age, month, kirim, sisa, target, targetAuto, autoTarget, tunda, tone, hay, _d: d };
   }
 
   function startOfToday() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
 
+  // Tambah n hari kerja (lewati Sabtu & Minggu). Libur nasional belum dihitung.
+  function addWorkdays(iso, n) {
+    const d = new Date(iso + "T00:00:00");
+    let left = n;
+    while (left > 0) {
+      d.setDate(d.getDate() + 1);
+      const w = d.getDay();
+      if (w !== 0 && w !== 6) left--;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
   function kirimText(r) {
     if (!r.kirim) return "";
-    if (r.kirim === "none") return "Belum ada target";
+    if (r.kirim === "none") return "Tanpa Request date";
     if (r.kirim === "late") return `Terlambat ${-r.sisa} hr`;
     if (r.kirim === "today") return "Hari ini";
     return `H-${r.sisa}`;
@@ -339,7 +357,7 @@
       if (!ignore.includes("month") && state.month && r.month !== state.month) return false;
       if (state.from && (!r.request_date || r.request_date < state.from)) return false;
       if (state.to && (!r.request_date || r.request_date > state.to)) return false;
-      if (state.kirim && r.kirim !== state.kirim) return false;
+      if (state.kirim === "tunda" ? !(r.kirim && r.tunda) : state.kirim && r.kirim !== state.kirim) return false;
       for (const f of state.flags) {
         if (f === "noCos" && !(r.aktif && r.noCos)) return false;
         if (f === "noGp" && !(r.aktif && r.noGp)) return false;
@@ -359,6 +377,7 @@
     const val = (r) => {
       if (key === "status") return STATUS[r.status]?.order ?? 99;
       if (key === "age") return r.age ?? -1;
+      if (key === "target") return r.target ?? "";
       return (r[key] ?? "").toString().toLowerCase();
     };
     return [...rows].sort((a, b) => {
@@ -434,8 +453,8 @@
   // ---------- Reminder pengiriman ----------
   function renderReminder() {
     const open = state.rows.filter((r) => r.kirim);
-    const count = (k) => open.filter((r) => r.kirim === k).length;
-    $("#remTiles").innerHTML = ["late", "today", "soon", "none"].map((k) => `
+    const count = (k) => (k === "tunda" ? open.filter((r) => r.tunda).length : open.filter((r) => r.kirim === k).length);
+    $("#remTiles").innerHTML = ["late", "today", "soon", "tunda"].map((k) => `
       <button class="rem-tile ${state.kirim === k ? "on" : ""}" data-kirim="${k}" style="--c:${KIRIM[k].color}">
         <div class="n">${count(k)}</div><div class="t">${KIRIM[k].label}</div>
       </button>`).join("");
@@ -447,14 +466,15 @@
       return `<button class="rem-item" data-id="${r.id}" style="--c:${c}">
         <div class="top"><span class="po">${esc(r.no_po || "No PO belum ada")}</span>${kirimBadge(r)}</div>
         <div class="cust">${esc(r.customer || "–")}${r.project ? ` · ${esc(r.project)}` : ""}</div>
-        <div class="cust">Target: ${r.target_kirim ? fmtDate(r.target_kirim) : "–"} · ${esc(r.status)}</div>
+        <div class="cust">Target: ${r.target ? fmtDate(r.target) : "–"}${r.targetAuto ? " (otomatis)" : ""} · ${esc(r.status)}</div>
+        ${r.tunda ? `<div class="cust tunda">⏸ ${esc(r.alasan_tunda)}</div>` : ""}
       </button>`;
     };
     let html = "";
     if (urgent.length) html += `<div class="rem-group">Perlu tindakan (${urgent.length})</div>` + urgent.map(item).join("");
     if (later.length) html += `<div class="rem-group">Terjadwal (${later.length})</div>` + later.slice(0, 15).map(item).join("");
     const none = count("none");
-    if (none) html += `<div class="rem-empty">${none} PO aktif belum punya Target kirim. Klik kotak “Belum ada target” lalu isi lewat ✎ Edit.</div>`;
+    if (none) html += `<div class="rem-empty">${none} PO aktif belum punya Request date, jadi target kirim tidak bisa dihitung. Lengkapi lewat ✎ Edit.</div>`;
     if (!open.length) html = `<div class="rem-empty">Tidak ada PO yang menunggu pengiriman. 🎉</div>`;
     $("#remList").innerHTML = html;
   }
@@ -641,7 +661,7 @@
             <span class="ell" title="COS ${esc(r.cos)}${r.posting_cos ? ` · posting ${esc(r.posting_cos)}` : ""}">${r.noCos ? `<span class="missing">COS belum</span>` : esc(r.cos)}</span>
             <span class="ell sub2" title="No. GP ${esc(r.no_gp)}">${r.noGp ? `<span class="missing">GP belum</span>` : `GP ${esc(r.no_gp)}`}</span></td>
         <td><div class="clip2" title="${esc(prog)}">${prog ? esc(prog) : dash}</div></td>
-        <td>${r.target_kirim ? fmtDateShort(r.target_kirim) : dash}${r.kirim ? `<div>${kirimBadge(r)}</div>` : ""}</td>
+        <td title="${r.targetAuto ? `Otomatis: Request date + ${SLA_HARI_KERJA} hari kerja` : r.tunda ? `Ditunda: ${esc(r.alasan_tunda)}` : "Target manual"}">${r.target ? fmtDateShort(r.target) : dash}${r.targetAuto ? `<span class="sub2"> auto</span>` : ""}${r.kirim ? `<div>${kirimBadge(r)}${r.tunda ? ` <span class="badge b-purple">Ditunda</span>` : ""}</div>` : ""}</td>
         <td><span class="badge ${STATUS[r.status].badge}">${r.status}</span>${tags ? `<div class="tags">${tags}</div>` : ""}</td>
         <td class="num ${r.age > 30 ? "age-old" : ""}">${r.age != null ? `${r.age}hr` : dash}</td>
         <td class="no-print"><div class="acts">
@@ -740,7 +760,7 @@
       const k = e.target.closest("[data-kirim]"); if (!k) return;
       const v = k.dataset.kirim;
       state.kirim = state.kirim === v ? "" : v;
-      if (state.kirim) { state.view = "aktif"; state.status = ""; state.tab = "list"; state.sort = { key: "target_kirim", dir: "asc" }; }
+      if (state.kirim) { state.view = "aktif"; state.status = ""; state.tab = "list"; state.sort = { key: "target", dir: "asc" }; }
       render();
     });
     $("#remList").addEventListener("click", (e) => { const it = e.target.closest("[data-id]"); if (it) openDrawer(+it.dataset.id); });
@@ -807,7 +827,8 @@
         ${f("COS", r.cos)}
         ${f("Nomor posting COS", r.posting_cos)}
         ${f("No. GP", r.no_gp)}
-        ${f("Target kirim", r.target_kirim ? `${fmtDate(r.target_kirim)}${r.kirim ? ` (${kirimText(r)})` : ""}` : "")}
+        ${f("Target kirim", r.target ? `${fmtDate(r.target)}${r.targetAuto ? ` (otomatis, ${SLA_HARI_KERJA} hari kerja)` : " (manual)"}${r.kirim ? ` · ${kirimText(r)}` : ""}` : "")}
+        ${f("Alasan belum bisa kirim", r.alasan_tunda)}
         ${f("Progres / Unit indent", r.progres)}
         ${f("Notes", r.notes)}
         ${f("Ceklis Selesai", r.selesai ? "✔ Selesai (dicentang)" : "Belum")}
@@ -851,6 +872,10 @@
       else { const v = el.value.trim(); rec[k] = v === "" ? null : v; }
     });
     if (!rec.no_po && !rec.customer) return msg("#poMsg", "Isi minimal No PO atau Customer.");
+    const auto = rec.request_date ? addWorkdays(rec.request_date, SLA_HARI_KERJA) : null;
+    if (rec.target_kirim && auto && rec.target_kirim > auto && !rec.alasan_tunda) {
+      return msg("#poMsg", `Target kirim melewati ${SLA_HARI_KERJA} hari kerja (maks. ${fmtDate(auto)}). Isi "Alasan belum bisa dikirim".`);
+    }
     if (rec.selesai && (!rec.no_po || !rec.cos || !rec.no_gp)) {
       if (!confirm("No PO / COS / No. GP belum lengkap. Tetap centang Selesai? (PO akan tampil merah: Dicentang belum lengkap)")) return;
     }
@@ -942,11 +967,11 @@
     const cols = [
       ["request_date", "Request Date"], ["request_by", "Request by"], ["no_po", "No PO"], ["customer", "Customer"],
       ["project", "Project"], ["details", "Details"], ["cos", "COS"], ["posting_cos", "Nomor Posting COS"],
-      ["no_gp", "No. GP"], ["target_kirim", "Target kirim"], ["kirimText", "Reminder kirim"], ["progres", "Progres / Unit indent"], ["notes", "Notes"],
+      ["no_gp", "No. GP"], ["target", "Target kirim"], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["alasan_tunda", "Alasan belum bisa kirim"], ["progres", "Progres / Unit indent"], ["notes", "Notes"],
       ["selesai", "Selesai (Admin)"], ["status", "Status"], ["age", "Umur (hari)"],
     ];
     const q = (v) => { const s = v == null ? "" : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const val = (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : k === "kirimText" ? kirimText(r) : r[k]);
+    const val = (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : k === "kirimText" ? kirimText(r) : k === "targetSrc" ? (r.target ? (r.targetAuto ? "Otomatis 5 hari kerja" : "Manual") : "") : r[k]);
     const csv = [cols.map((c) => c[1]).join(","), ...rows.map((r) => cols.map(([k]) => q(val(r, k))).join(","))].join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
