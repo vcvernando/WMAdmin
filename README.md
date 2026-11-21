@@ -12,10 +12,8 @@ Dashboard **Selling PO** (pengganti tab *Selling PO* & *Selling PO - Aktif* di G
   Reminder aktif sampai *Ceklis Selesai* dicentang (PO canceled tidak diingatkan)
 - Kolom Aksi: View, Edit (semua akun disetujui), Hapus (khusus admin); tombol ＋ Tambah PO
 - **🔑 Password** (semua pengguna): ganti password sendiri; wajib isi password sekarang, password baru min. 8 karakter berisi huruf & angka
-- **⚙ Tampilan** (tab Daftar PO): pilih kolom tabel (Request date, Request by, Customer, Nilai PO, COS/GP, Progres, Target kirim, Status, Umur; No PO wajib)
+- **⚙ Tampilan** (tab Daftar PO): pilih kolom tabel (Request date, Request by, Customer, COS/GP, Progres, Target kirim, Status, Umur; No PO wajib)
   dan bagian dashboard (KPI, Filter, panel Reminder, legenda). Pilihan disimpan per browser; Progres/Notes default tampil hanya di layar >= 1440px
-- **Nilai PO (Rp)**: kolom di tabel (bisa di-sort), KPI *Nilai PO aktif*, total sesuai filter di judul tabel, kolom di Ringkasan per Request by dan CSV.
-  Diisi lewat Edit/Tambah (boleh `12.500.000`, `12,5 jt`, `1,2 M`) atau otomatis dari email bila nominal tertulis (`parse_nilai`). Di layar < 1440px kolom Progres/Notes disembunyikan (tetap ada di View)
 - KPI: Total aktif, Belum ada COS, Belum posting COS, Belum ada No. GP, Perlu cek, Dicentang belum lengkap, Umur > 30 hari, Total PO (klik = filter)
 - Mini pie chart: Status, Request by, Kelengkapan dokumen; bar chart PO per bulan (klik = filter)
 - Pencarian teks di semua kolom (tekan `/` untuk fokus ke kotak cari)

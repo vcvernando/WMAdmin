@@ -25,7 +25,6 @@ Tugas rutin: perbarui data PO PENJUALAN (Selling PO) di database Supabase dari l
   - request_by: kode SBU (SGP, SGJ, SGM, SBY, VO, IVW, IVB, IVD, IDC, IOC, ENT, OSS, PKU, SMI, AS, GDN, DEC, PVH, Regular, dll). Lihat pola data yang ada dengan: `select request_by, count(*) from public.selling_po group by 1 order by 2 desc;`
   - no_po (WAJIB, persis seperti tertulis), customer, project, details
   - cos (IH-SOTP-…/IH-SONP-…), posting_cos (IH-SITP-…), no_gp (GP-HS-2026-xxx), progres (status/unit indent), notes
-  - nilai_po: TOTAL nilai PO dalam Rupiah persis seperti tertulis di email/PO (mis. "Rp 12.500.000"). Isi hanya bila nominalnya jelas tertulis (grand total PO); jangan menghitung sendiri dari harga satuan dan jangan menebak. Jika hanya ada di lampiran PDF yang tidak terbaca, kosongkan.
   - Jangan isi selesai, target_kirim, atau alasan_tunda (diatur admin di dashboard).
 - Satu No PO = satu objek. Jika beberapa email membahas PO yang sama, gabungkan informasinya (ambil yang paling lengkap).
 - Jangan menebak. Jika No PO tidak jelas, JANGAN kirim objeknya; masukkan ke daftar "Perlu cek" di ringkasan. Informasi yang ragu-ragu tulis di notes dengan awalan "Perlu cek:".

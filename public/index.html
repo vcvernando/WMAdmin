@@ -199,7 +199,7 @@
               <table class="listing" id="listing">
                 <colgroup>
                   <col class="c-date" style="width:78px" /><col class="c-by" style="width:56px" /><col class="c-po" style="width:112px" /><col class="c-cust" />
-                  <col class="c-nilai" style="width:108px" /><col class="c-docs" style="width:118px" /><col class="c-prog" /><col class="c-target" style="width:92px" /><col class="c-status" style="width:116px" />
+                  <col class="c-docs" style="width:118px" /><col class="c-prog" /><col class="c-target" style="width:92px" /><col class="c-status" style="width:116px" />
                   <col class="c-age" style="width:50px" /><col class="no-print" style="width:94px" />
                 </colgroup>
                 <thead>
@@ -208,7 +208,6 @@
                     <th data-sort="request_by" class="c-by">Req by</th>
                     <th data-sort="no_po" class="c-po">No PO</th>
                     <th data-sort="customer" class="c-cust">Customer / Project</th>
-                    <th data-sort="nilai_po" class="num c-nilai">Nilai PO (Rp)</th>
                     <th data-sort="cos" class="c-docs">COS / No. GP</th>
                     <th class="c-prog">Progres / Notes</th>
                     <th data-sort="target" class="c-target">Target kirim</th>
@@ -287,7 +286,6 @@
         <label>COS<input name="cos" /></label>
         <label>Nomor posting COS<input name="posting_cos" /></label>
         <label>No. GP<input name="no_gp" /></label>
-        <label>Nilai PO (Rp) <span class="hint">total sesuai PO, mis. 12.500.000</span><input name="nilai_po" inputmode="decimal" placeholder="0" /></label>
         <label class="hl">Target kirim <span class="hint">kosong = otomatis Request date + 5 hari kerja</span><input name="target_kirim" type="date" /></label>
         <label class="span2">Alasan belum bisa dikirim <span class="hint">wajib bila target melewati 5 hari kerja</span><textarea name="alasan_tunda" rows="2" placeholder="mis. unit indent dari vendor, menunggu DP customer, site belum siap"></textarea></label>
         <label class="span2">Progres / Unit indent<textarea name="progres" rows="2"></textarea></label>

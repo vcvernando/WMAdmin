@@ -136,7 +136,7 @@ button { font: inherit; }
 .scroll { overflow: auto; }
 
 /* KPI */
-.kpis { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 8px; }
+.kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
 .kpi {
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
   padding: 7px 10px; cursor: pointer; text-align: left; color: inherit; border-left: 4px solid var(--accent, var(--brand)); min-width: 0;
@@ -387,7 +387,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   .main { display: block; }
   .card, .kpi { box-shadow: none; border-color: #ccc; padding: 6px; break-inside: avoid; }
   .card.flow { break-inside: auto; border: 0; padding: 0; display: block; }
-  .kpis { grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 8px; }
+  .kpis { grid-template-columns: repeat(8, 1fr); gap: 6px; margin-bottom: 8px; }
   .kpi .label { font-size: 9px; }
   .kpi .value { font-size: 15px; }
   .table-wrap, #paneList .table-wrap { overflow: visible; }
