@@ -818,6 +818,8 @@
     $("#btnCsv").addEventListener("click", exportCsv);
     $("#btnRefresh").addEventListener("click", load);
     $("#btnUsers").addEventListener("click", openUsers);
+    $("#btnPass").addEventListener("click", openPass);
+    $("#passForm").addEventListener("submit", savePass);
     $("#pendingBannerBtn").addEventListener("click", openUsers);
     $("#usersTable").addEventListener("click", onUserAction);
   }
@@ -929,6 +931,38 @@
     buildOptions();
     render();
     toast("PO dihapus.");
+  }
+
+  // ---------- Ganti password (semua pengguna) ----------
+  async function openPass() {
+    $("#passForm").reset();
+    msg("#passMsg", "");
+    const { data } = await sb.auth.getUser();
+    const email = data?.user?.email || "";
+    const uname = me?.username;
+    $("#passWho").textContent = `Akun: ${uname ? `${uname} (login dengan username)` : email}`;
+    $("#passModal").hidden = false;
+    setTimeout(() => $("#passForm").elements.old.focus(), 0);
+  }
+
+  async function savePass(e) {
+    e.preventDefault();
+    const f = $("#passForm").elements;
+    const oldP = f.old.value, p1 = f.new1.value, p2 = f.new2.value;
+    if (!oldP || !p1) return msg("#passMsg", "Isi password sekarang dan password baru.");
+    if (p1.length < 8 || !/[A-Za-z]/.test(p1) || !/[0-9]/.test(p1)) return msg("#passMsg", "Password baru minimal 8 karakter dan harus berisi huruf dan angka.");
+    if (p1 !== p2) return msg("#passMsg", "Ulangi password baru tidak sama.");
+    if (p1 === oldP) return msg("#passMsg", "Password baru harus berbeda dari password sekarang.");
+    const btn = $("#passSave"); btn.disabled = true;
+    const { data: u } = await sb.auth.getUser();
+    // pastikan password sekarang benar sebelum mengganti
+    const { error: e1 } = await sb.auth.signInWithPassword({ email: u?.user?.email, password: oldP });
+    if (e1) { btn.disabled = false; return msg("#passMsg", /invalid login/i.test(e1.message) ? "Password sekarang salah." : authError(e1)); }
+    const { error: e2 } = await sb.auth.updateUser({ password: p1 });
+    btn.disabled = false;
+    if (e2) return msg("#passMsg", authError(e2));
+    $("#passModal").hidden = true;
+    toast("Password berhasil diganti. Gunakan password baru saat Sign in berikutnya.");
   }
 
   // ---------- Pengguna (admin) ----------

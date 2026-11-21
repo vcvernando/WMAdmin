@@ -113,6 +113,7 @@
         <button id="btnPrint" class="btn ghost">🖨 Print</button>
         <button id="btnUsers" class="btn ghost" hidden title="Approve akun baru & kelola pengguna">✅ Approve Akun <span class="pill" id="pendingCount" hidden></span></button>
         <span class="who" id="who"></span>
+        <button class="btn ghost" id="btnPass" title="Ganti password akun Anda">🔑 Password</button>
         <button class="btn ghost" data-logout>Keluar</button>
       </div>
     </header>
@@ -304,6 +305,27 @@
   </div>
 
   <!-- Modal Pengguna (admin) -->
+  <!-- Modal Ganti Password -->
+  <div class="modal no-print" id="passModal" hidden>
+    <form class="modal-panel narrow" id="passForm" novalidate>
+      <header class="modal-head">
+        <h2>Ganti password</h2>
+        <button type="button" class="close" data-close aria-label="Tutup">✕</button>
+      </header>
+      <p class="hint" id="passWho"></p>
+      <div class="form-grid one">
+        <label>Password sekarang<input name="old" type="password" autocomplete="current-password" required /></label>
+        <label>Password baru <span class="hint">min. 8 karakter, campur huruf & angka</span><input name="new1" type="password" autocomplete="new-password" required /></label>
+        <label>Ulangi password baru<input name="new2" type="password" autocomplete="new-password" required /></label>
+      </div>
+      <p class="auth-msg" id="passMsg" role="alert"></p>
+      <footer class="modal-foot">
+        <button type="button" class="btn light" data-close>Batal</button>
+        <button type="submit" class="btn primary" id="passSave">Simpan password</button>
+      </footer>
+    </form>
+  </div>
+
   <div class="modal no-print" id="usersModal" hidden>
     <div class="modal-panel wide">
       <header class="modal-head">
