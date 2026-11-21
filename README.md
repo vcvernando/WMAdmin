@@ -12,10 +12,8 @@ Dashboard **Selling PO** (pengganti tab *Selling PO* & *Selling PO - Aktif* di G
   Reminder aktif sampai *Ceklis Selesai* dicentang (PO canceled tidak diingatkan)
 - Kolom Aksi: View, Edit (semua akun disetujui), Hapus (khusus admin); tombol ＋ Tambah PO
 - **🔑 Password** (semua pengguna): ganti password sendiri; wajib isi password sekarang, password baru min. 8 karakter berisi huruf & angka
-- **⚙ Tampilan** (tab Daftar PO): pilih kolom tabel (Request date, Request by, Customer, Nilai PO, COS/GP, Progres, Target kirim, Status, Umur; No PO wajib)
+- **⚙ Tampilan** (tab Daftar PO): pilih kolom tabel (Request date, Request by, Customer, COS/GP, Progres, Target kirim, Status, Umur; No PO wajib)
   dan bagian dashboard (KPI, Filter, panel Reminder, legenda). Pilihan disimpan per browser; Progres/Notes default tampil hanya di layar >= 1440px
-- **Nilai PO (Rp)**: kolom di tabel (bisa di-sort), KPI *Nilai PO aktif*, total sesuai filter di judul tabel, kolom di Ringkasan per Request by dan CSV.
-  Diisi lewat Edit/Tambah (boleh `12.500.000`, `12,5 jt`, `1,2 M`) atau otomatis dari email bila nominal tertulis (`parse_nilai`). Di layar < 1440px kolom Progres/Notes disembunyikan (tetap ada di View)
 - KPI: Total aktif, Belum ada COS, Belum posting COS, Belum ada No. GP, Perlu cek, Dicentang belum lengkap, Umur > 30 hari, Total PO (klik = filter)
 - Mini pie chart: Status, Request by, Kelengkapan dokumen; bar chart PO per bulan (klik = filter)
 - Pencarian teks di semua kolom (tekan `/` untuk fokus ke kotak cari)
@@ -69,3 +67,14 @@ Waktu email terakhir yang diproses disimpan di `sync_log.email_terakhir` (pengga
 Isian dashboard, Ceklis Selesai, target kirim, dan alasan tidak pernah ditimpa; PO yang dihapus admin (`selling_po_deleted`)
 tidak diimpor ulang; data dari email tanpa No PO yang jelas ditolak (dilaporkan "perlu cek") agar tidak ganda.
 Fungsi ini tidak bisa dipanggil dari browser.
+
+## Pembayaran Vendor (tab 💳)
+Memantau pengajuan pembayaran vendor ke Finance (umumnya entitas IVP) sampai dibayar, agar tidak ada yang terlewat.
+- **Jatuh tempo** = tanggal dasar + TOP. Dasar default *barang diterima gudang* (bisa per vendor/tagihan: tanggal invoice / dokumen lengkap).
+- **Rencana bayar** = Kamis terdekat dari jatuh tempo; paling cepat Kamis minggu berikutnya setelah **dokumen fisik lengkap**
+  (invoice + faktur pajak + surat jalan). Dokumen belum lengkap = belum bisa dijadwalkan. Finance bisa mengisi tanggal manual.
+- Peringatan: *Terlewat finance* (sudah diajukan, lewat Kamis/Jumat rencana, belum dibayar), *Lewat jatuh tempo*, *Jadwal mundur* (dokumen telat),
+  *Dokumen belum lengkap*, *Siap, belum diajukan*. Panel kanan: jadwal Kamis/Jumat ini & minggu depan.
+- Master vendor (🏢 Vendor): TOP & dasar hitung default. Vendor baru otomatis ditambahkan saat tagihan disimpan.
+- Data dari email: tugas Cowork `docs/tugas-email-pembayaran.md` → `ingest_payment_requests()` (kunci vendor + no invoice, status hanya naik).
+- Hak akses sama dengan Selling PO (lihat & ubah: akun disetujui; hapus: admin).

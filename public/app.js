@@ -7,7 +7,7 @@
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   const DAY = 86400000;
-  const FIELDS = ["request_date", "request_by", "no_po", "customer", "project", "details", "cos", "posting_cos", "no_gp", "target_kirim", "alasan_tunda", "progres", "notes", "selesai", "nilai_po"];
+  const FIELDS = ["request_date", "request_by", "no_po", "customer", "project", "details", "cos", "posting_cos", "no_gp", "target_kirim", "alasan_tunda", "progres", "notes", "selesai"];
   const SLA_HARI_KERJA = 5; // target kirim otomatis = Request date + 5 hari kerja (Sen–Jum)
 
   // ---------- Supabase (sesi di localStorage bila "Remember me", selain itu sessionStorage) ----------
@@ -132,6 +132,7 @@
     $("#who").textContent = `${me.nama}${me.role === "admin" ? " · admin" : ""}`;
     $("#btnUsers").hidden = me.role !== "admin";
     showScreen("app");
+    document.dispatchEvent(new CustomEvent("wm:login", { detail: me }));
     await load();
     if (me.role === "admin") {
       refreshPendingCount();
@@ -220,6 +221,7 @@
     $$("[data-logout]").forEach((b) => b.addEventListener("click", async () => {
       await sb.auth.signOut();
       state.rows = [];
+      document.dispatchEvent(new CustomEvent("wm:logout"));
       onSession(null);
     }));
     $("#btnPendingRefresh").addEventListener("click", async () => {
@@ -317,8 +319,7 @@
       target ? fmtDate(target) : "", r.alasan_tunda]
       .filter(Boolean).join(" \u0001 ").toLowerCase();
 
-    const nilai = r.nilai_po == null || r.nilai_po === "" ? null : Number(r.nilai_po);
-    return { ...r, nilai_po: nilai, status, aktif, ditolak, noPo, noCos, noPosting, noGp, cek, cekNote, indent, canceled, age, month, kirim, sisa, target, targetAuto, autoTarget, tunda, tone, hay, _d: d };
+    return { ...r, status, aktif, ditolak, noPo, noCos, noPosting, noGp, cek, cekNote, indent, canceled, age, month, kirim, sisa, target, targetAuto, autoTarget, tunda, tone, hay, _d: d };
   }
 
   function startOfToday() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
@@ -383,7 +384,6 @@
     const val = (r) => {
       if (key === "status") return STATUS[r.status]?.order ?? 99;
       if (key === "age") return r.age ?? -1;
-      if (key === "nilai_po") return r.nilai_po ?? -1;
       if (key === "target") return r.target ?? "";
       return (r[key] ?? "").toString().toLowerCase();
     };
@@ -426,7 +426,6 @@
       { key: "red", label: "Dicentang blm lengkap", value: all.filter((r) => r.ditolak).length, accent: "#c62828" },
       { key: "old", label: "Umur > 30 hari", value: aktif.filter((r) => r.age != null && r.age > 30).length, accent: "#8b1d1d" },
       { key: "all", label: "Total PO", value: all.length, accent: "#5f6b7a" },
-      { key: "nilai", label: "Nilai PO aktif (Rp)", value: fmtRpShort(sumNilai(aktifCust)).replace(/^Rp /, ""), title: `Total nilai PO aktif: ${fmtRp(sumNilai(aktifCust))} (${aktifCust.filter((r) => r.nilai_po != null).length} dari ${aktifCust.length} PO sudah ada nilainya)`, accent: "#0e9aa7" },
     ];
     const activeKey = currentKpiKey();
     $("#kpis").innerHTML = k.map((x) => `
@@ -453,7 +452,6 @@
     if (key === "all") state.view = "all";
     else if (key === "aktif") state.view = "aktif";
     else if (key === "red") { state.view = "all"; state.status = "Dicentang belum lengkap"; }
-    else if (key === "nilai") { state.view = "aktif"; state.sort = { key: "nilai_po", dir: "desc" }; }
     else { state.view = "aktif"; state.flags.add(key); }
     state.tab = "list";
     render();
@@ -592,7 +590,7 @@
     const groups = {};
     rows.forEach((r) => {
       const k = r.request_by || "(kosong)";
-      groups[k] ??= { total: 0, aktif: 0, selesai: 0, noCos: 0, noGp: 0, late: 0, nilai: 0, ages: [] };
+      groups[k] ??= { total: 0, aktif: 0, selesai: 0, noCos: 0, noGp: 0, late: 0, ages: [] };
       const g = groups[k];
       g.total++;
       if (r.aktif) g.aktif++;
@@ -600,16 +598,15 @@
       if (r.aktif && r.noCos) g.noCos++;
       if (r.aktif && r.noGp) g.noGp++;
       if (r.kirim === "late") g.late++;
-      if (r.nilai_po != null) g.nilai += r.nilai_po;
       if (r.age != null) g.ages.push(r.age);
     });
     const list = Object.entries(groups).sort((a, b) => b[1].aktif - a[1].aktif || b[1].total - a[1].total);
     const maxAktif = Math.max(1, ...list.map(([, g]) => g.aktif));
     const tot = list.reduce((t, [, g]) => {
-      ["total", "aktif", "selesai", "noCos", "noGp", "late", "nilai"].forEach((f) => (t[f] += g[f]));
+      ["total", "aktif", "selesai", "noCos", "noGp", "late"].forEach((f) => (t[f] += g[f]));
       t.ages.push(...g.ages);
       return t;
-    }, { total: 0, aktif: 0, selesai: 0, noCos: 0, noGp: 0, late: 0, nilai: 0, ages: [] });
+    }, { total: 0, aktif: 0, selesai: 0, noCos: 0, noGp: 0, late: 0, ages: [] });
     const avg = (a) => (a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : "–");
     const mx = (a) => (a.length ? Math.max(...a) : "–");
     const hr = (a) => (a.length ? " hr" : "");
@@ -617,7 +614,7 @@
     $("#summaryTable").innerHTML = `
       <thead><tr>
         <th>Request by</th><th class="num">Total</th><th class="num">Aktif</th><th class="num">Selesai</th>
-        <th class="num">Belum COS</th><th class="num">Belum GP</th><th class="num">Terlambat kirim</th><th class="num">Nilai PO</th>
+        <th class="num">Belum COS</th><th class="num">Belum GP</th><th class="num">Terlambat kirim</th>
         <th class="num">Rata² umur aktif</th><th class="num">Umur tertua</th>
       </tr></thead>
       <tbody>${list.map(([k, g]) => `
@@ -629,14 +626,13 @@
           <td class="num ${g.noCos ? "missing" : ""}">${g.noCos}</td>
           <td class="num ${g.noGp ? "missing" : ""}">${g.noGp}</td>
           <td class="num ${g.late ? "missing" : ""}">${g.late}</td>
-          <td class="num" title="${fmtRp(g.nilai)}">${g.nilai ? fmtRpShort(g.nilai) : "–"}</td>
           <td class="num">${avg(g.ages)}${hr(g.ages)}</td>
           <td class="num">${mx(g.ages)}${hr(g.ages)}</td>
         </tr>`).join("")}
       </tbody>
       <tfoot><tr>
         <td>Total</td><td class="num">${tot.total}</td><td class="num">${tot.aktif}</td><td class="num">${tot.selesai}</td>
-        <td class="num">${tot.noCos}</td><td class="num">${tot.noGp}</td><td class="num">${tot.late}</td><td class="num" title="${fmtRp(tot.nilai)}">${tot.nilai ? fmtRpShort(tot.nilai) : "–"}</td>
+        <td class="num">${tot.noCos}</td><td class="num">${tot.noGp}</td><td class="num">${tot.late}</td>
         <td class="num">${avg(tot.ages)}${hr(tot.ages)}</td><td class="num">${mx(tot.ages)}${hr(tot.ages)}</td>
       </tr></tfoot>`;
     $$("#summaryTable tbody tr").forEach((tr) => tr.addEventListener("click", () => {
@@ -652,9 +648,7 @@
   const dash = `<span class="muted">–</span>`;
 
   function renderTable(rows) {
-    const tot = sumNilai(rows);
-    $("#rowCount").textContent = `(${rows.length}${tot ? ` · ${fmtRpShort(tot)}` : ""})`;
-    $("#rowCount").title = tot ? `Total nilai PO sesuai filter: ${fmtRp(tot)}` : "";
+    $("#rowCount").textContent = `(${rows.length})`;
     $("#empty").hidden = rows.length > 0;
     const isAdmin = me?.role === "admin";
     $("#listing tbody").innerHTML = rows.map((r) => {
@@ -670,7 +664,6 @@
         <td class="po c-po"><span class="ell" title="${esc(r.no_po)}">${r.noPo ? `<span class="missing">Belum ada</span>` : esc(r.no_po)}</span></td>
         <td class="c-cust"><span class="ell" title="${esc(r.customer)}">${blank(r.customer) ? dash : esc(r.customer)}</span>
             <span class="ell sub2" title="${esc(r.project)}">${esc(r.project || "")}</span></td>
-        <td class="num c-nilai" title="${r.nilai_po != null ? fmtRp(r.nilai_po) : "Nilai PO belum diisi"}">${r.nilai_po != null ? fmtNum(r.nilai_po) : dash}</td>
         <td class="c-docs ${docOrange ? "cell-orange" : ""}">
             <span class="ell" title="COS ${esc(r.cos)}${r.posting_cos ? ` · posting ${esc(r.posting_cos)}` : ""}">${r.noCos ? `<span class="missing">COS belum</span>` : esc(r.cos)}</span>
             <span class="ell sub2" title="No. GP ${esc(r.no_gp)}">${r.noGp ? `<span class="missing">GP belum</span>` : `GP ${esc(r.no_gp)}`}</span></td>
@@ -844,7 +837,6 @@
         ${f("COS", r.cos)}
         ${f("Nomor posting COS", r.posting_cos)}
         ${f("No. GP", r.no_gp)}
-        ${f("Nilai PO", r.nilai_po != null ? fmtRp(r.nilai_po) : "")}
         ${f("Target kirim", r.target ? `${fmtDate(r.target)}${r.targetAuto ? ` (otomatis, ${SLA_HARI_KERJA} hari kerja)` : " (manual)"}${r.kirim ? ` · ${kirimText(r)}` : ""}` : "")}
         ${f("Alasan belum bisa kirim", r.alasan_tunda)}
         ${f("Progres / Unit indent", r.progres)}
@@ -872,7 +864,6 @@
       const el = form.elements[k];
       if (!el) return;
       if (el.type === "checkbox") el.checked = !!r?.[k];
-      else if (k === "nilai_po") el.value = r?.nilai_po != null ? fmtNum(r.nilai_po) : "";
       else el.value = r ? (r[k] ?? "") : (k === "request_date" ? isoToday() : "");
     });
     $("#poModalTitle").textContent = r ? `Edit PO ${r.no_po || ""}`.trim() : "Tambah PO";
@@ -891,11 +882,6 @@
       else { const v = el.value.trim(); rec[k] = v === "" ? null : v; }
     });
     if (!rec.no_po && !rec.customer) return msg("#poMsg", "Isi minimal No PO atau Customer.");
-    if (rec.nilai_po != null) {
-      const n = parseNilai(rec.nilai_po);
-      if (n == null) return msg("#poMsg", "Nilai PO tidak valid. Contoh: 12.500.000 atau 12,5 jt.");
-      rec.nilai_po = n;
-    }
     const auto = rec.request_date ? addWorkdays(rec.request_date, SLA_HARI_KERJA) : null;
     if (rec.target_kirim && auto && rec.target_kirim > auto && !rec.alasan_tunda) {
       return msg("#poMsg", `Target kirim melewati ${SLA_HARI_KERJA} hari kerja (maks. ${fmtDate(auto)}). Isi "Alasan belum bisa dikirim".`);
@@ -1024,7 +1010,7 @@
     const cols = [
       ["request_date", "Request Date"], ["request_by", "Request by"], ["no_po", "No PO"], ["customer", "Customer"],
       ["project", "Project"], ["details", "Details"], ["cos", "COS"], ["posting_cos", "Nomor Posting COS"],
-      ["no_gp", "No. GP"], ["target", "Target kirim"], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["alasan_tunda", "Alasan belum bisa kirim"], ["nilai_po", "Nilai PO (Rp)"], ["progres", "Progres / Unit indent"], ["notes", "Notes"],
+      ["no_gp", "No. GP"], ["target", "Target kirim"], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["alasan_tunda", "Alasan belum bisa kirim"], ["progres", "Progres / Unit indent"], ["notes", "Notes"],
       ["selesai", "Selesai (Admin)"], ["status", "Status"], ["age", "Umur (hari)"],
     ];
     const q = (v) => { const s = v == null ? "" : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -1050,33 +1036,6 @@
   }
   function countBy(rows, f) { return rows.reduce((m, r) => { const k = f(r); m[k] = (m[k] || 0) + 1; return m; }, {}); }
   function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-  function sumNilai(rows) { return rows.reduce((s, r) => s + (r.nilai_po || 0), 0); }
-  function fmtNum(n) { return Math.round(n).toLocaleString("id-ID"); }
-  function fmtRp(n) { return `Rp ${(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}`; }
-  function fmtRpShort(n) {
-    if (!n) return "Rp 0";
-    const a = Math.abs(n);
-    if (a >= 1e12) return `Rp ${(n / 1e12).toLocaleString("id-ID", { maximumFractionDigits: 2 })} T`;
-    if (a >= 1e9) return `Rp ${(n / 1e9).toLocaleString("id-ID", { maximumFractionDigits: 2 })} M`;
-    if (a >= 1e6) return `Rp ${(n / 1e6).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
-    return fmtRp(n);
-  }
-  // "Rp 12.500.000", "12,500,000.00", "12.500.000,50", "12,5 jt", "1,2 M" -> angka (sama dengan public.parse_nilai)
-  function parseNilai(t) {
-    let s = String(t).trim().toLowerCase().replace(/^(rp\.?|idr)\s*/, "");
-    let mult = 1;
-    if (/(jt|juta)\s*$/.test(s)) { mult = 1e6; s = s.replace(/\s*(jt|juta)\s*$/, ""); }
-    else if (/(m|miliar|milyar)\s*$/.test(s)) { mult = 1e9; s = s.replace(/\s*(m|miliar|milyar)\s*$/, ""); }
-    if (/[^0-9.,\s]/.test(s)) return null;
-    s = s.replace(/\s/g, "");
-    if (!s) return null;
-    const d = s.lastIndexOf("."), c = s.lastIndexOf(",");
-    if (d >= 0 && c >= 0) s = c > d ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
-    else if (c >= 0) s = /,\d{1,2}$/.test(s) && s.indexOf(",") === c ? s.replace(",", ".") : s.replace(/,/g, "");
-    else if (d >= 0) s = /\.\d{1,2}$/.test(s) && s.indexOf(".") === d ? s : s.replace(/\./g, "");
-    const n = Number(s) * mult;
-    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
-  }
   function isoToday() { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`; }
   function fmtDate(iso) { const [y, m, d] = iso.slice(0, 10).split("-"); return `${+d} ${MONTHS[+m - 1]} ${y}`; }
   function fmtDateShort(iso) { const [y, m, d] = iso.slice(0, 10).split("-"); return `${+d} ${MONTHS[+m - 1]} ${y.slice(2)}`; }
@@ -1104,7 +1063,7 @@
   const VIEW_KEY = "wm-view";
   const VIEW_COLS = [
     ["date", "Request date"], ["by", "Request by"], ["po", "No PO", true], ["cust", "Customer / Project"],
-    ["nilai", "Nilai PO (Rp)"], ["docs", "COS / No. GP"], ["prog", "Progres / Notes"], ["target", "Target kirim"],
+    ["docs", "COS / No. GP"], ["prog", "Progres / Notes"], ["target", "Target kirim"],
     ["status", "Status"], ["age", "Umur"],
   ];
   const VIEW_SECS = [
@@ -1165,6 +1124,9 @@
     });
     $("#vpReset").addEventListener("click", () => { view = { cols: {}, secs: {} }; saveView(); applyView(); });
   }
+
+  // Dipakai modul lain (payments.js)
+  window.WM = { sb, me: () => me, toast, esc, msg, authError, isoToday, fmtDate, fmtDateShort, fmtDateTime, ICON };
 
   // ---------- Start ----------
   restoreState();
