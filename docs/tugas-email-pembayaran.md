@@ -41,6 +41,8 @@ Tugas rutin: perbarui data PENGAJUAN PEMBAYARAN VENDOR di database Supabase dari
 - tgl_diajukan (tanggal email pengajuan), no_pengajuan, pic_finance, rencana_bayar (bila finance menyebut tanggal), tgl_dibayar, no_bukti_transfer, alasan
 - email_ref: "yyyy-mm-dd hh:nn:ss - <subjek>" dari email sumber
 - Jangan menebak. Jika vendor atau nomor invoice tidak jelas, JANGAN kirim objeknya; masukkan ke daftar "Perlu cek" di ringkasan.
+- no_po: tulis nomor PO NAV (IH-POTP-…/IH-PONP-…) bila disebut; database otomatis menautkan tagihan ke PO di tab 🧾 PO Pembelian & Bayar. Satu PO boleh punya beberapa tagihan (barang, freight, surveyor, bea cukai).
+- Untuk vendor CBD/Exwork, Proforma Invoice (PI) yang diterima dicatat sebagai tagihan: no_invoice = nomor PI, tgl_invoice = tanggal PI diterima, doc_invoice = true. Dashboard menjadwalkan bayar Kamis minggu berikutnya; faktur/SJ tidak dipersyaratkan.
 
 ## Menulis ke Supabase
 - Panggil SATU kali dengan semua tagihan (bagi beberapa panggilan bila JSON > 1,5 MB):

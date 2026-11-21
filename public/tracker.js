@@ -1,4 +1,4 @@
-// Modul tracker generik: 🚢 PO Principal (po_principal) & ↩ COS Retur (cos_retur).
+// Modul tracker generik (saat ini: ↩ COS Retur / cos_retur). PO Principal digabung ke purchase.js (PO Pembelian & Bayar).
 // Pantau setiap PO pembelian / retur sampai dicentang "Selesai".
 // Perlu perhatian: status Perlu Cek, Pending, tanpa update > 7 hari, atau status akhir tapi belum dicentang selesai.
 (() => {
@@ -17,47 +17,6 @@
   const short = (iso) => (iso ? fmtDateShort(iso) : "");
 
   const CONFIGS = [
-    {
-      key: "po", table: "po_principal", title: "PO Principal", icon: "🚢", noun: "PO", dateKey: "tgl_po",
-      addLabel: "＋ Tambah PO", searchPh: "Cari No PO, principal, item, AJU, PIC…",
-      statuses: {
-        "PO Dikirim": "b-gray", "Konfirmasi Principal": "b-blue", "Pembayaran": "b-yellow", "Shipping": "b-purple",
-        "Customs / AJU": "b-orange", "POFW Approved": "b-purple", "Barang Masuk Gudang": "b-green", "Selesai": "b-green",
-        "Pending": "b-red", "Cancelled": "b-gray", "Perlu Cek": "b-red",
-      },
-      stages: [
-        { key: "awal", label: "Menunggu principal", accent: "#5f6b7a", st: ["PO Dikirim", "Konfirmasi Principal", "Pembayaran"] },
-        { key: "jalan", label: "Shipping / customs", accent: "#7a3ff2", st: ["Shipping", "Customs / AJU", "POFW Approved"] },
-      ],
-      endStatus: ["Barang Masuk Gudang", "Selesai", "Cancelled"],
-      groupBy: { key: "principal", all: "Semua principal" },
-      hay: ["no_po", "principal", "item", "qty", "no_aju", "status", "update_terakhir", "pic", "email_ref", "catatan"],
-      cols: [
-        { label: "Tgl PO", sort: "tgl_po", w: 78, td: (r) => (r.tgl_po ? short(r.tgl_po) : dash) },
-        { label: "No PO / Principal", sort: "no_po", w: 190, td: (r) => `<span class="ell" title="${esc(r.no_po)}"><strong>${esc(r.no_po)}</strong></span><span class="ell sub2" title="${esc(r.principal)}">${esc(r.principal || "–")}</span>` },
-        { label: "Item / Qty", sort: "item", td: (r) => `<span class="ell" title="${esc(r.item)}">${esc(r.item || "–")}</span><span class="ell sub2">${esc(r.qty || "")}${r.no_aju ? ` · AJU ${esc(r.no_aju)}` : ""}</span>` },
-      ],
-      form: [
-        { k: "tgl_po", label: "Tgl PO", type: "date" },
-        { k: "no_po", label: "No PO *", req: true },
-        { k: "principal", label: "Principal", list: true },
-        { k: "item", label: "Item", span: 2 },
-        { k: "qty", label: "Qty" },
-        { k: "no_aju", label: "No AJU / PIB" },
-        { k: "status", label: "Status", type: "status" },
-        { k: "tgl_update", label: "Tgl update", type: "date" },
-        { k: "update_terakhir", label: "Update terakhir", type: "textarea", span: 3 },
-        { k: "pic", label: "PIC" },
-        { k: "email_ref", label: "Ref email (subjek)", span: 2 },
-        { k: "tgl_email_pertama", label: "Tgl email pertama", type: "date" },
-        { k: "catatan", label: "Catatan", type: "textarea", span: 3 },
-        { k: "selesai", label: "Selesai (berhenti dipantau)", type: "check" },
-      ],
-      csv: [["tgl_po", "Tgl PO"], ["no_po", "No PO"], ["principal", "Principal"], ["item", "Item"], ["qty", "Qty"], ["no_aju", "No AJU"], ["status", "Status"],
-        ["update_terakhir", "Update terakhir"], ["tgl_update", "Tgl update"], ["pic", "PIC"], ["email_ref", "Ref email"], ["catatan", "Catatan"], ["tgl_email_pertama", "Tgl email pertama"], ["selesai", "Selesai"]],
-      headline: (r) => r.no_po, subline: (r) => [r.principal, r.item].filter(Boolean).join(" · "),
-      dupMsg: "No PO ini sudah ada di tracker.",
-    },
     {
       key: "retur", table: "cos_retur", title: "COS Retur", icon: "↩", noun: "retur", dateKey: "tgl_request",
       addLabel: "＋ Tambah Retur", searchPh: "Cari No COS, customer, unit, SN, PIC…",

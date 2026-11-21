@@ -104,8 +104,7 @@
         <div>
           <div class="modules no-print" role="tablist">
             <button class="mod on" data-module="selling" role="tab">📦 Selling PO</button>
-            <button class="mod" data-module="pay" role="tab">💳 Pembayaran Vendor</button>
-            <button class="mod" data-module="po" role="tab">🚢 PO Principal</button>
+            <button class="mod" data-module="pay" role="tab">🧾 PO Pembelian &amp; Bayar</button>
             <button class="mod" data-module="retur" role="tab">↩ COS Retur</button>
           </div>
           <h1 class="print-only">Selling PO</h1>
@@ -120,8 +119,9 @@
           <button id="btnPrint" class="btn ghost">🖨 Print</button>
         </span>
         <span class="act-group" id="payActions" hidden>
-          <button id="payAdd" class="btn primary">＋ Tambah Tagihan</button>
-          <button id="payVendors" class="btn ghost" title="Master vendor: TOP & dasar hitung">🏢 Vendor</button>
+          <button id="payAddPo" class="btn primary">＋ PO</button>
+          <button id="payAdd" class="btn primary">＋ Tagihan</button>
+          <button id="payVendors" class="btn ghost" title="Master vendor: termin, TOP, internal/eksternal">🏢</button>
           <button id="payRefresh" class="btn ghost" title="Muat ulang data">⟳</button>
           <button id="payCsv" class="btn ghost">⬇ CSV</button>
         </span>
@@ -277,65 +277,77 @@
     <!-- ================= PEMBAYARAN VENDOR ================= -->
     <div class="layout" id="payLayout" hidden>
       <main class="main">
-        <section class="kpis pay-kpis" id="payKpis"></section>
+        <section class="kpis" id="payKpis"></section>
 
         <section class="card filters no-print">
           <div class="filter-row pay-filter-row">
-            <label class="search" title="Cari vendor, invoice, PO, faktur, catatan">
+            <label class="search" title="Cari No PO, principal, item, invoice, AJU, catatan">
               <span aria-hidden="true">🔍</span>
-              <input id="payQ" type="search" placeholder="Cari vendor, No invoice, No PO, faktur…" autocomplete="off" />
+              <input id="payQ" type="search" placeholder="Cari No PO, principal, item, invoice, AJU…" autocomplete="off" />
             </label>
-            <select id="payView" title="Tampilan">
-              <option value="open">Belum dibayar</option>
-              <option value="all">Semua tagihan</option>
-              <option value="paid">Sudah dibayar</option>
+            <select id="payScope" title="Jenis PO">
+              <option value="eksternal">Vendor eksternal</option>
+              <option value="internal">PO internal (KIM, ABCD, ISI, ISS)</option>
+              <option value="semua">Semua PO</option>
             </select>
-            <select id="payStatus" title="Status"><option value="">Semua status</option></select>
-            <select id="payVendor" title="Vendor"><option value="">Semua vendor</option></select>
-            <select id="payEntitas" title="Entitas"><option value="">Semua entitas</option></select>
+            <select id="payView" title="Tampilan">
+              <option value="open">Masih dipantau</option>
+              <option value="all">Semua</option>
+              <option value="done">Sudah selesai</option>
+            </select>
+            <select id="payStatus" title="Status PO"><option value="">Semua status PO</option></select>
+            <select id="payBayar" title="Status bayar">
+              <option value="">Semua status bayar</option>
+              <option value="tanpa">Belum ada tagihan</option>
+              <option value="belum">Tagihan belum diajukan</option>
+              <option value="proses">Diajukan / dijadwalkan</option>
+              <option value="lunas">Lunas</option>
+            </select>
+            <select id="payVendor" title="Principal / vendor"><option value="">Semua principal</option></select>
           </div>
           <div class="chips" id="payChips">
-            <button class="chip" data-pflag="lewat">Lewat jatuh tempo</button>
-            <button class="chip" data-pflag="terlewat">Terlewat finance</button>
-            <button class="chip" data-pflag="mundur">Jadwal mundur (dokumen)</button>
-            <button class="chip" data-pflag="dokumen">Dokumen belum lengkap</button>
+            <button class="chip" data-pflag="tertahan">Tertahan bayar (CBD)</button>
+            <button class="chip" data-pflag="telat">Terlewat / lewat jatuh tempo</button>
             <button class="chip" data-pflag="ajukan">Siap, belum diajukan</button>
+            <button class="chip" data-pflag="dokumen">Dokumen belum lengkap</button>
             <button class="chip" data-pflag="mingguini">Bayar minggu ini</button>
+            <button class="chip" data-pflag="cek">Perlu cek</button>
+            <button class="chip" data-pflag="basi">&gt; 7 hari tanpa update</button>
+            <button class="chip" data-pflag="tutup">Siap dicentang selesai</button>
             <button id="payReset" class="chip reset">✕ Reset filter</button>
           </div>
         </section>
 
         <section class="card flow grow">
           <header class="card-head">
-            <h3>Tagihan vendor <span class="count" id="payCount"></span></h3>
+            <h3>🧾 PO Pembelian &amp; Pembayaran <span class="count" id="payCount"></span></h3>
             <div class="legend">
-              <span class="hint">Rencana bayar = Kamis terdekat dari jatuh tempo, paling cepat Kamis minggu berikutnya setelah dokumen fisik lengkap</span>
+              <span class="hint">CBD/Exwork: bayar dulu setelah PI diterima · TOP: Kamis terdekat dari jatuh tempo, setelah dokumen fisik lengkap</span>
             </div>
           </header>
           <div class="tab-pane">
             <div class="table-wrap scroll">
               <table class="listing pay-table" id="payTable">
                 <colgroup>
-                  <col /><col style="width:150px" /><col style="width:84px" /><col style="width:46px" />
-                  <col style="width:92px" /><col style="width:124px" /><col style="width:92px" /><col style="width:132px" />
-                  <col class="no-print" style="width:94px" />
+                  <col style="width:74px" /><col style="width:196px" /><col /><col style="width:150px" />
+                  <col style="width:200px" /><col class="c-upd" style="width:20%" /><col style="width:38px" />
+                  <col class="no-print" style="width:128px" />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th data-psort="vendor_nama">Vendor / Entitas</th>
-                    <th data-psort="no_invoice">No Invoice / PO</th>
-                    <th data-psort="basis">Tgl dasar</th>
-                    <th data-psort="top" class="num">TOP</th>
-                    <th data-psort="jatuh">Jatuh tempo</th>
-                    <th data-psort="rencana">Rencana bayar</th>
-                    <th>Dokumen</th>
-                    <th data-psort="status">Status</th>
+                    <th data-psort="tgl_po">Tgl PO</th>
+                    <th data-psort="no_po">No PO / Principal</th>
+                    <th data-psort="item">Item / Qty</th>
+                    <th data-psort="status">Status PO</th>
+                    <th data-psort="bayar">Pembayaran</th>
+                    <th class="c-upd" data-psort="tgl_update">Update terakhir</th>
+                    <th class="num" title="Selesai">✔</th>
                     <th class="no-print act-col">Aksi</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
               </table>
-              <p class="empty" id="payEmpty" hidden>Tidak ada tagihan yang cocok dengan filter.</p>
+              <p class="empty" id="payEmpty" hidden>Tidak ada PO yang cocok dengan filter.</p>
             </div>
           </div>
         </section>
@@ -371,14 +383,23 @@
         <h4 class="span3 fg-title">Tagihan</h4>
         <label>Vendor *<input name="vendor_nama" list="dlVendor" autocomplete="off" required /></label>
         <label>Entitas<input name="entitas" list="dlEntitas" placeholder="IVP" /></label>
-        <label>No PO<input name="no_po" list="dlPoPrincipal" /></label>
+        <label>No PO <span class="hint" id="payPoLink"></span><input name="no_po" list="dlPoPrincipal" autocomplete="off" /></label>
         <label>No invoice *<input name="no_invoice" required /></label>
-        <label>Tgl invoice<input name="tgl_invoice" type="date" /></label>
+        <label>Tgl invoice / PI diterima<input name="tgl_invoice" type="date" /></label>
         <label>Nominal<input name="nominal" inputmode="decimal" placeholder="mis. 25.000.000" /></label>
 
         <h4 class="span3 fg-title">Jatuh tempo</h4>
         <label class="hl">Tgl barang diterima gudang<input name="tgl_barang_diterima" type="date" /></label>
-        <label>TOP (hari) <span class="hint">kosong = ikut vendor</span><input name="top_hari" type="number" min="0" max="365" /></label>
+        <label>Termin
+          <select name="termin">
+            <option value="">Ikut PO / vendor</option>
+            <option value="TOP">TOP (bayar setelah barang diterima)</option>
+            <option value="CBD">CBD (bayar sebelum dikirim)</option>
+            <option value="Exwork">Exwork (bayar sebelum diambil)</option>
+            <option value="DP">DP + pelunasan</option>
+          </select>
+        </label>
+        <label>TOP (hari) <span class="hint">kosong = ikut PO / vendor</span><input name="top_hari" type="number" min="0" max="365" /></label>
         <label>Dasar hitung TOP
           <select name="dasar_top">
             <option value="">Ikut vendor</option>
@@ -390,7 +411,7 @@
 
         <h4 class="span3 fg-title">Dokumen fisik <span class="hint">payment baru diproses setelah invoice, faktur pajak &amp; surat jalan fisik diterima</span></h4>
         <div class="span3 doc-checks">
-          <label class="check"><input type="checkbox" name="doc_invoice" /> Invoice asli</label>
+          <label class="check"><input type="checkbox" name="doc_invoice" /> Invoice asli / PI (CBD)</label>
           <label class="check"><input type="checkbox" name="doc_faktur" /> Faktur pajak</label>
           <label class="check"><input type="checkbox" name="doc_sj" /> Surat jalan / BAST</label>
           <label class="check"><input type="checkbox" name="doc_po" /> PO</label>
@@ -434,6 +455,53 @@
     </form>
   </div>
 
+  <!-- Modal Tambah / Edit PO pembelian -->
+  <div class="modal no-print" id="beliModal" hidden>
+    <form class="modal-panel wide" id="beliForm" novalidate>
+      <header class="modal-head">
+        <h2 id="beliTitle">Tambah PO</h2>
+        <button type="button" class="close" data-close aria-label="Tutup">✕</button>
+      </header>
+      <div class="form-grid three">
+        <label>Tgl PO<input name="tgl_po" type="date" /></label>
+        <label>No PO *<input name="no_po" required autocomplete="off" /></label>
+        <label>Principal / vendor<input name="principal" list="dlVendor" autocomplete="off" /></label>
+        <label class="span2">Item<input name="item" /></label>
+        <label>Qty<input name="qty" /></label>
+        <label>Termin
+          <select name="termin">
+            <option value="">Belum diisi (eksternal dianggap CBD)</option>
+            <option value="TOP">TOP (bayar setelah barang diterima)</option>
+            <option value="CBD">CBD (bayar sebelum dikirim)</option>
+            <option value="Exwork">Exwork (bayar sebelum diambil)</option>
+            <option value="DP">DP + pelunasan</option>
+          </select>
+        </label>
+        <label>TOP (hari)<input name="top_hari" type="number" min="0" max="365" /></label>
+        <label class="check"><input type="checkbox" name="internal" /> PO internal (potong antar company)</label>
+        <label>No AJU / PIB<input name="no_aju" /></label>
+        <label>Status
+          <select name="status">
+            <option>PO Dikirim</option><option>Konfirmasi Principal</option><option>Pembayaran</option><option>Shipping</option>
+            <option>Customs / AJU</option><option>POFW Approved</option><option>Barang Masuk Gudang</option><option>Selesai</option>
+            <option>Pending</option><option>Cancelled</option><option>Perlu Cek</option>
+          </select>
+        </label>
+        <label>Tgl update<input name="tgl_update" type="date" /></label>
+        <label class="span3">Update terakhir<textarea name="update_terakhir" rows="2"></textarea></label>
+        <label>PIC<input name="pic" /></label>
+        <label class="span2">Ref email (subjek)<input name="email_ref" /></label>
+        <label class="span3">Catatan<textarea name="catatan" rows="2"></textarea></label>
+        <label class="check span3"><input type="checkbox" name="selesai" /> Selesai (berhenti dipantau)</label>
+      </div>
+      <p class="auth-msg" id="beliMsg" role="alert"></p>
+      <footer class="modal-foot">
+        <button type="button" class="btn light" data-close>Batal</button>
+        <button type="submit" class="btn primary">Simpan</button>
+      </footer>
+    </form>
+  </div>
+
   <!-- Modal master vendor -->
   <div class="modal no-print" id="vendorModal" hidden>
     <div class="modal-panel wide">
@@ -452,6 +520,12 @@
             <option value="dokumen_lengkap">Dokumen fisik lengkap</option>
           </select>
         </label>
+        <label>Termin
+          <select name="termin">
+            <option value="TOP">TOP</option><option value="CBD">CBD</option><option value="Exwork">Exwork</option><option value="DP">DP</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="internal" /> Internal</label>
         <label>Mata uang<input name="mata_uang" value="IDR" /></label>
         <label>NPWP<input name="npwp" /></label>
         <label>PIC / kontak<input name="pic" /></label>
@@ -547,7 +621,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
-  <script src="payments.js"></script>
+  <script src="purchase.js"></script>
   <script src="tracker.js"></script>
 </body>
 </html>
