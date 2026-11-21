@@ -136,7 +136,7 @@ button { font: inherit; }
 .scroll { overflow: auto; }
 
 /* KPI */
-.kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.kpis { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 8px; }
 .kpi {
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
   padding: 7px 10px; cursor: pointer; text-align: left; color: inherit; border-left: 4px solid var(--accent, var(--brand)); min-width: 0;
@@ -144,7 +144,7 @@ button { font: inherit; }
 .kpi:hover { transform: translateY(-1px); }
 .kpi.active { outline: 2px solid var(--accent, var(--brand)); }
 .kpi .label { color: var(--muted); font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi .value { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.kpi .value { font-size: 20px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .note { display: none; }
 
 /* Filters */
@@ -180,6 +180,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 
 .listing { font-size: 12px; table-layout: fixed; }
 .listing td { overflow: hidden; }
+.listing td:first-child, .listing td.num { white-space: nowrap; }
 .listing tbody tr { cursor: pointer; }
 .listing tbody tr:hover td { background: #f5f8ff; }
 .listing .po { font-weight: 600; }
@@ -289,6 +290,8 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 .modal { position: fixed; inset: 0; z-index: 60; background: rgba(15, 27, 51, .45); display: grid; place-items: center; padding: 16px; }
 .modal-panel { position: relative; width: min(720px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: 14px; padding: 18px 20px; box-shadow: 0 24px 48px rgba(0,0,0,.25); display: grid; gap: 12px; }
 .modal-panel.wide { width: min(980px, 100%); }
+.modal-panel.narrow { width: min(420px, 100%); }
+.form-grid.one { grid-template-columns: 1fr; }
 .modal-head h2 { margin: 0; font-size: 17px; }
 .modal-head .close { top: 14px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
@@ -307,6 +310,20 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 .users .acts { justify-content: flex-start; flex-wrap: wrap; }
 .users .btn { padding: 4px 9px; font-size: 11.5px; }
 
+/* Menu Tampilan (pilih kolom & bagian) */
+.head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.view-menu { position: relative; }
+.view-menu .btn { padding: 5px 10px; font-size: 12px; }
+.view-pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 420px; max-width: calc(100vw - 32px);
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 32px rgba(15, 27, 51, .18);
+  padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px;
+}
+.view-pop h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.vp-item { display: flex; padding: 3px 0; font-size: 12.5px; }
+.vp-item input:disabled + * { opacity: .6; }
+.vp-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+.layout.no-rem { grid-template-columns: minmax(0, 1fr) !important; }
 .pending-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 10px 16px 0; padding: 8px 12px; border-radius: 10px;
@@ -329,6 +346,11 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   .tab-pane { flex: 1; display: flex; flex-direction: column; }
   #paneList .table-wrap { flex: 1; min-height: 0; overflow: auto; }
   #paneAnalytics { overflow: auto; display: block; }
+}
+/* Layar < 1440px (laptop 1280/1366): kolom Progres/Notes disembunyikan (tetap ada di View), sidebar lebih ramping */
+@media (min-width: 1100px) and (max-width: 1439px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 268px; }
+  .listing .c-prog { display: none; }
 }
 @media (min-width: 1600px) {
   body { font-size: 14px; }
@@ -365,7 +387,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   .main { display: block; }
   .card, .kpi { box-shadow: none; border-color: #ccc; padding: 6px; break-inside: avoid; }
   .card.flow { break-inside: auto; border: 0; padding: 0; display: block; }
-  .kpis { grid-template-columns: repeat(8, 1fr); gap: 6px; margin-bottom: 8px; }
+  .kpis { grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 8px; }
   .kpi .label { font-size: 9px; }
   .kpi .value { font-size: 15px; }
   .table-wrap, #paneList .table-wrap { overflow: visible; }

@@ -113,6 +113,7 @@
         <button id="btnPrint" class="btn ghost">🖨 Print</button>
         <button id="btnUsers" class="btn ghost" hidden title="Approve akun baru & kelola pengguna">✅ Approve Akun <span class="pill" id="pendingCount" hidden></span></button>
         <span class="who" id="who"></span>
+        <button class="btn ghost" id="btnPass" title="Ganti password akun Anda">🔑 Password</button>
         <button class="btn ghost" data-logout>Keluar</button>
       </div>
     </header>
@@ -127,11 +128,12 @@
       <button class="btn primary" id="pendingBannerBtn" type="button">Buka Approve Akun</button>
     </div>
 
-    <div class="layout">
+    <style id="viewStyle"></style>
+    <div class="layout" id="layout">
       <main class="main">
         <section class="kpis" id="kpis"></section>
 
-        <section class="card filters no-print">
+        <section class="card filters no-print" id="filtersCard">
           <div class="filter-row">
             <label class="search" title="Tekan / untuk cari">
               <span aria-hidden="true">🔍</span>
@@ -166,10 +168,29 @@
               <button class="tab" data-tab="list" role="tab">Daftar PO <span class="count" id="rowCount"></span></button>
               <button class="tab" data-tab="analytics" role="tab">Analitik</button>
             </div>
-            <div class="legend" id="legendList">
-              <span class="lg red"></span>Dicentang belum lengkap
-              <span class="lg orange"></span>COS / Posting / GP kosong
-              <span class="lg yellow"></span>Perlu cek
+            <div class="head-right">
+              <div class="legend" id="legendList">
+                <span class="lg red"></span>Dicentang belum lengkap
+                <span class="lg orange"></span>COS / Posting / GP kosong
+                <span class="lg yellow"></span>Perlu cek
+              </div>
+              <div class="view-menu no-print">
+                <button type="button" class="btn light" id="btnView" aria-haspopup="true" aria-expanded="false" title="Pilih kolom & bagian dashboard yang ditampilkan">⚙ Tampilan</button>
+                <div class="view-pop" id="viewPop" hidden>
+                  <div class="vp-col">
+                    <h4>Kolom tabel</h4>
+                    <div id="vpCols"></div>
+                  </div>
+                  <div class="vp-col">
+                    <h4>Bagian dashboard</h4>
+                    <div id="vpSecs"></div>
+                  </div>
+                  <div class="vp-foot">
+                    <span class="hint">Tersimpan di browser ini</span>
+                    <button type="button" class="btn light" id="vpReset">Kembali ke default</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </header>
 
@@ -177,21 +198,22 @@
             <div class="table-wrap scroll">
               <table class="listing" id="listing">
                 <colgroup>
-                  <col style="width:84px" /><col style="width:74px" /><col style="width:118px" /><col />
-                  <col style="width:136px" /><col /><col style="width:104px" /><col style="width:136px" />
-                  <col style="width:54px" /><col class="no-print" style="width:100px" />
+                  <col class="c-date" style="width:78px" /><col class="c-by" style="width:56px" /><col class="c-po" style="width:112px" /><col class="c-cust" />
+                  <col class="c-nilai" style="width:108px" /><col class="c-docs" style="width:118px" /><col class="c-prog" /><col class="c-target" style="width:92px" /><col class="c-status" style="width:116px" />
+                  <col class="c-age" style="width:50px" /><col class="no-print" style="width:94px" />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th data-sort="request_date">Request</th>
-                    <th data-sort="request_by">Req by</th>
-                    <th data-sort="no_po">No PO</th>
-                    <th data-sort="customer">Customer / Project</th>
-                    <th data-sort="cos">COS / No. GP</th>
-                    <th>Progres / Notes</th>
-                    <th data-sort="target">Target kirim</th>
-                    <th data-sort="status">Status</th>
-                    <th data-sort="age" class="num">Umur</th>
+                    <th data-sort="request_date" class="c-date">Request</th>
+                    <th data-sort="request_by" class="c-by">Req by</th>
+                    <th data-sort="no_po" class="c-po">No PO</th>
+                    <th data-sort="customer" class="c-cust">Customer / Project</th>
+                    <th data-sort="nilai_po" class="num c-nilai">Nilai PO (Rp)</th>
+                    <th data-sort="cos" class="c-docs">COS / No. GP</th>
+                    <th class="c-prog">Progres / Notes</th>
+                    <th data-sort="target" class="c-target">Target kirim</th>
+                    <th data-sort="status" class="c-status">Status</th>
+                    <th data-sort="age" class="num c-age">Umur</th>
                     <th class="no-print act-col">Aksi</th>
                   </tr>
                 </thead>
@@ -265,6 +287,7 @@
         <label>COS<input name="cos" /></label>
         <label>Nomor posting COS<input name="posting_cos" /></label>
         <label>No. GP<input name="no_gp" /></label>
+        <label>Nilai PO (Rp) <span class="hint">total sesuai PO, mis. 12.500.000</span><input name="nilai_po" inputmode="decimal" placeholder="0" /></label>
         <label class="hl">Target kirim <span class="hint">kosong = otomatis Request date + 5 hari kerja</span><input name="target_kirim" type="date" /></label>
         <label class="span2">Alasan belum bisa dikirim <span class="hint">wajib bila target melewati 5 hari kerja</span><textarea name="alasan_tunda" rows="2" placeholder="mis. unit indent dari vendor, menunggu DP customer, site belum siap"></textarea></label>
         <label class="span2">Progres / Unit indent<textarea name="progres" rows="2"></textarea></label>
@@ -282,6 +305,27 @@
   </div>
 
   <!-- Modal Pengguna (admin) -->
+  <!-- Modal Ganti Password -->
+  <div class="modal no-print" id="passModal" hidden>
+    <form class="modal-panel narrow" id="passForm" novalidate>
+      <header class="modal-head">
+        <h2>Ganti password</h2>
+        <button type="button" class="close" data-close aria-label="Tutup">✕</button>
+      </header>
+      <p class="hint" id="passWho"></p>
+      <div class="form-grid one">
+        <label>Password sekarang<input name="old" type="password" autocomplete="current-password" required /></label>
+        <label>Password baru <span class="hint">min. 8 karakter, campur huruf & angka</span><input name="new1" type="password" autocomplete="new-password" required /></label>
+        <label>Ulangi password baru<input name="new2" type="password" autocomplete="new-password" required /></label>
+      </div>
+      <p class="auth-msg" id="passMsg" role="alert"></p>
+      <footer class="modal-foot">
+        <button type="button" class="btn light" data-close>Batal</button>
+        <button type="submit" class="btn primary" id="passSave">Simpan password</button>
+      </footer>
+    </form>
+  </div>
+
   <div class="modal no-print" id="usersModal" hidden>
     <div class="modal-panel wide">
       <header class="modal-head">
