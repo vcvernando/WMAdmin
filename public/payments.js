@@ -531,22 +531,30 @@
 
   // ---------- Pindah modul ----------
   const MOD_KEY = "wm-module";
+  // Registry modul: selling & pay di sini, tracker.js mendaftarkan "po" & "retur" lewat WM.registerModule.
+  const MODS = {
+    selling: { title: "Selling PO", layout: "#layout", actions: "#sellingActions", asOf: "#asOf" },
+    pay: { title: "Pembayaran Vendor", layout: "#payLayout", actions: "#payActions", asOf: "#payAsOf", show: () => { if (!st.loaded) load(); } },
+  };
+  W.registerModule = (key, def) => { MODS[key] = def; };
+  const el = (x) => (typeof x === "string" ? $(x) : x);
   function setModule(mod) {
+    if (!MODS[mod]) mod = "selling";
     st.active = mod === "pay";
     $$(".mod").forEach((b) => b.classList.toggle("on", b.dataset.module === mod));
-    $("#layout").hidden = st.active;
-    $("#payLayout").hidden = !st.active;
-    $("#sellingActions").hidden = st.active;
-    $("#payActions").hidden = !st.active;
-    $("#asOf").hidden = st.active;
-    $("#payAsOf").hidden = !st.active;
-    document.title = st.active ? "Pembayaran Vendor · WM Admin" : "Selling PO · WM Admin";
+    for (const [k, m] of Object.entries(MODS)) {
+      const on = k === mod;
+      el(m.layout).hidden = !on;
+      el(m.actions).hidden = !on;
+      el(m.asOf).hidden = !on;
+    }
+    document.title = `${MODS[mod].title} · WM Admin`;
     try { localStorage.setItem(MOD_KEY, mod); } catch (_) { /* abaikan */ }
-    if (st.active && !st.loaded) load();
+    MODS[mod].show?.();
   }
 
   function bind() {
-    $$(".mod").forEach((b) => b.addEventListener("click", () => setModule(b.dataset.module)));
+    $(".modules").addEventListener("click", (e) => { const b = e.target.closest(".mod"); if (b) setModule(b.dataset.module); });
     let t;
     $("#payQ").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => { st.q = e.target.value; render(); }, 150); });
     $("#payView").addEventListener("change", (e) => { st.view = e.target.value; render(); });
