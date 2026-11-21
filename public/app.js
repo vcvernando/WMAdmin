@@ -132,6 +132,7 @@
     $("#who").textContent = `${me.nama}${me.role === "admin" ? " · admin" : ""}`;
     $("#btnUsers").hidden = me.role !== "admin";
     showScreen("app");
+    document.dispatchEvent(new CustomEvent("wm:login", { detail: me }));
     await load();
     if (me.role === "admin") {
       refreshPendingCount();
@@ -220,6 +221,7 @@
     $$("[data-logout]").forEach((b) => b.addEventListener("click", async () => {
       await sb.auth.signOut();
       state.rows = [];
+      document.dispatchEvent(new CustomEvent("wm:logout"));
       onSession(null);
     }));
     $("#btnPendingRefresh").addEventListener("click", async () => {
@@ -1122,6 +1124,9 @@
     });
     $("#vpReset").addEventListener("click", () => { view = { cols: {}, secs: {} }; saveView(); applyView(); });
   }
+
+  // Dipakai modul lain (payments.js)
+  window.WM = { sb, me: () => me, toast, esc, msg, authError, isoToday, fmtDate, fmtDateShort, fmtDateTime, ICON };
 
   // ---------- Start ----------
   restoreState();

@@ -310,6 +310,33 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 .users .acts { justify-content: flex-start; flex-wrap: wrap; }
 .users .btn { padding: 4px 9px; font-size: 11.5px; }
 
+/* ===== Pindah modul (Selling PO / Pembayaran Vendor) ===== */
+.modules { display: flex; gap: 4px; background: rgba(255,255,255,.08); padding: 3px; border-radius: 9px; margin-bottom: 2px; }
+.mod { border: 0; background: transparent; color: #cfd8e6; padding: 4px 10px; border-radius: 7px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.mod.on { background: #fff; color: var(--navy); }
+.mod:hover:not(.on) { background: rgba(255,255,255,.12); }
+.act-group { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+/* ===== Pembayaran Vendor ===== */
+.pay-filter-row { grid-template-columns: minmax(200px, 2.4fr) repeat(4, minmax(0, 1fr)); }
+.pay-table td { overflow: hidden; }
+.docs { display: flex; gap: 3px; flex-wrap: wrap; }
+.doc { font-size: 9.5px; font-weight: 700; padding: 1px 4px; border-radius: 4px; background: var(--gray-bg); color: #9aa3af; border: 1px solid var(--line); }
+.doc.on { background: var(--green-bg); color: var(--green); border-color: #bfe5cd; }
+.form-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-grid .span3 { grid-column: 1 / -1; }
+.form-grid .span2 { grid-column: span 2; }
+.form-grid select { font: inherit; color: var(--ink); padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; width: 100%; }
+.fg-title { margin: 6px 0 -2px; font-size: 12px; color: var(--navy); text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.fg-title .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.doc-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.doc-checks .check { color: var(--ink); font-weight: 500; }
+.req { color: var(--red); }
+#payCalc { margin: 0; padding: 8px 10px; background: var(--blue-bg); border-radius: 8px; color: var(--ink); }
+#payCalc:empty { display: none; }
+.vendor-form { grid-template-columns: 2fr .8fr 1.4fr .8fr 1.2fr 1.2fr auto; align-items: end; margin-bottom: 4px; }
+.vendor-form-actions { display: flex; gap: 6px; }
+
 /* Menu Tampilan (pilih kolom & bagian) */
 .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .view-menu { position: relative; }
@@ -346,6 +373,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   .tab-pane { flex: 1; display: flex; flex-direction: column; }
   #paneList .table-wrap { flex: 1; min-height: 0; overflow: auto; }
   #paneAnalytics { overflow: auto; display: block; }
+  #payLayout .table-wrap { flex: 1; min-height: 0; overflow: auto; }
 }
 /* Layar < 1440px (laptop 1280/1366): kolom Progres/Notes disembunyikan (tetap ada di View), sidebar lebih ramping */
 @media (min-width: 1100px) and (max-width: 1439px) {
@@ -367,6 +395,11 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
   .listing { min-width: 1000px; }
   .charts { grid-template-columns: 1fr; }
   .topbar { flex-wrap: wrap; }
+}
+@media (max-width: 1099px) {
+  .pay-filter-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pay-table { min-width: 1000px; }
+  .form-grid.three, .vendor-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
