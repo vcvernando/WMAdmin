@@ -39,8 +39,8 @@ Format lain disimpan sebagai tanggal kosong (PO tidak punya umur dan tidak masuk
 
 ## Struktur
 ```
-public/            # file yang di-deploy (index.html, app.js, styles.css, config.js)
-supabase/migrations/  # skema tabel selling_po + RLS
+public/            # file yang di-deploy (index.html, app.js, payments.js, tracker.js, styles.css, config.js)
+supabase/migrations/  # skema tabel, fungsi ingest email + RLS
 vercel.json
 ```
 
@@ -78,3 +78,14 @@ Memantau pengajuan pembayaran vendor ke Finance (umumnya entitas IVP) sampai dib
 - Master vendor (🏢 Vendor): TOP & dasar hitung default. Vendor baru otomatis ditambahkan saat tagihan disimpan.
 - Data dari email: tugas Cowork `docs/tugas-email-pembayaran.md` → `ingest_payment_requests()` (kunci vendor + no invoice, status hanya naik).
 - Hak akses sama dengan Selling PO (lihat & ubah: akun disetujui; hapus: admin).
+
+## PO Principal (tab 🚢) & COS Retur (tab ↩)
+Pengganti Google Sheet "Tracker PO Principal & COS Retur" (data awal sudah diimpor: 52 PO, 33 retur).
+- Setiap PO pembelian / kasus retur dipantau sampai dicentang **✔ Selesai** (kolom ✔ di tabel atau tombol di View).
+- **Perlu perhatian** (panel kanan & chip filter): status *Perlu Cek*, *Pending*, **> 7 hari tanpa update**,
+  dan status akhir (Barang Masuk Gudang / Selesai / Cancelled) yang belum dicentang selesai.
+- KPI per tahap (PO: menunggu principal, shipping/customs; Retur: request/COS dibuat, unit di gudang/SRV), filter status,
+  principal / tindakan, pencarian, CSV, Tambah/Edit/View, Hapus (admin).
+- Data dari email: tugas Cowork `docs/tugas-email-po-principal-retur.md` → `ingest_po_principal()` / `ingest_cos_retur()`
+  (satu No PO / kasus = satu baris; status hanya diganti bila email lebih baru; catatan ditambahkan; kolom selesai tidak disentuh).
+  W per tracker disimpan di `tracker_sync_log`.
