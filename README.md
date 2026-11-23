@@ -79,6 +79,14 @@ Gabungan tracker PO Principal + pembayaran vendor: satu baris = satu PO ke princ
     = **Tertahan bayar (CBD)**.
   - **TOP**: jatuh tempo = tanggal dasar (default barang diterima gudang) + TOP → Kamis terdekat; paling cepat Kamis minggu berikutnya setelah
     dokumen fisik lengkap (invoice + faktur pajak + surat jalan).
+- **Auto update** (trigger database, berlaku untuk dashboard & tugas email):
+  - TOP (hari) diisi tapi termin kosong → termin **TOP** (di tagihan maupun PO).
+  - Termin/TOP **PO diubah** → tagihan yang belum dibayar & masih mengikuti nilai lama PO ikut berubah.
+    Termin/TOP **diisi di tagihan** → termin/TOP PO yang masih kosong ikut terisi.
+  - Status tagihan ikut tanggal: *Tgl dibayar* → Dibayar; *Tgl diajukan* → Diajukan; *Rencana bayar* (dari finance, setelah diajukan) → Dijadwalkan.
+    Hanya saat tanggalnya baru diisi/diubah, jadi status yang diubah manual tidak dipaksa balik.
+  - Cegah dobel: No invoice yang sudah ada → form menawarkan membuka tagihan lama (isian baru dipindahkan ke sana);
+    nominal sama di PO yang sama / nomor invoice mirip (akhiran -01, /002) → konfirmasi dulu.
 - Peringatan: Tertahan bayar (CBD), Terlewat / lewat jatuh tempo, Siap belum diajukan, Dokumen belum lengkap, Bayar minggu ini, Perlu cek,
   > 7 hari tanpa update, Siap dicentang selesai (status akhir & semua tagihan lunas). Panel kanan: jadwal bayar Kamis/Jumat.
 - Data dari email: `ingest_po_principal()` + `set_po_termin()` (docs/tugas-email-po-principal-retur.md, Prompt A) dan
