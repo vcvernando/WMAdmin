@@ -108,7 +108,7 @@
   function enrichPo(p) {
     const v = vendorByName(p.principal);
     const internal = p.internal ?? isInternalName(p.principal);
-    const termin = p.termin || (v && v.termin !== "TOP" ? v.termin : null) || (internal ? "TOP" : v ? v.termin : null);
+    const termin = p.termin || (p.top_hari > 0 ? "TOP" : null) || (v && v.termin !== "TOP" ? v.termin : null) || (internal ? "TOP" : v ? v.termin : null);
     const terminEff = termin || "CBD";
     const top = p.top_hari ?? v?.top_hari ?? (internal ? 30 : null);
     const umur = p.tgl_update ? daysBetween(toD(p.tgl_update), today()) : null;
@@ -120,7 +120,8 @@
   function enrichPay(r) {
     const po = r.po_id ? st.pos.find((p) => p.id === r.po_id) : null;
     const v = vendorByName(r.vendor_nama);
-    const termin = r.termin || po?.termin || v?.termin || po?.terminEff || "TOP";
+    // TOP (hari) yang diisi di tagihan = termin TOP (sama dengan trigger payment_requests_auto di database)
+    const termin = r.termin || (r.top_hari > 0 ? "TOP" : null) || po?.termin || v?.termin || po?.terminEff || "TOP";
     const cbd = isCbd(termin);
     const now = today();
     const paid = r.status === "dibayar";
@@ -506,10 +507,26 @@
     if (error) return msg("#beliMsg", error.code === "23505" ? "No PO ini sudah ada." : `Gagal menyimpan: ${authError(error)}`);
     const i = st.pos.findIndex((x) => x.id === data.id);
     if (i >= 0) st.pos[i] = data; else st.pos.push(data);
+    if (editingPo) await refreshPaysOfPo(data.id);  // termin/TOP PO ikut ke tagihan terbuka (trigger database)
     $("#beliModal").hidden = true;
     rebuild(); buildOptions(); render();
     if ($("#payDrawer").classList.contains("open")) openDrawer(data.id);
     toast(editingPo ? "PO diperbarui." : "PO ditambahkan.");
+  }
+
+  // Database ikut mengubah baris terkait (termin/TOP PO <-> tagihan); ambil ulang supaya tampilan sama.
+  async function refreshPo(id) {
+    if (!id) return;
+    const { data } = await sb.from("po_principal").select("*").eq("id", id).maybeSingle();
+    const i = data ? st.pos.findIndex((x) => x.id === id) : -1;
+    if (i >= 0) st.pos[i] = data;
+  }
+  async function refreshPaysOfPo(id) {
+    const { data } = await sb.from("payment_requests").select("*").eq("po_id", id);
+    for (const r of data || []) {
+      const i = st.pays.findIndex((x) => x.id === r.id);
+      if (i >= 0) st.pays[i] = r;
+    }
   }
 
   async function toggleDone(id, value) {
@@ -614,7 +631,7 @@
     const internal = po?.internal ?? isInternalName(rec.vendor_nama);
     const { data, error } = await sb.from("vendors").insert({
       nama: rec.vendor_nama.trim(), top_hari: rec.top_hari ?? (internal ? 30 : po?.top ?? 30), dasar_top: rec.dasar_top || "barang_diterima",
-      internal, termin: rec.termin || (po && norm(po.principal) === norm(rec.vendor_nama) ? po.terminEff : "TOP"),
+      internal, termin: rec.termin || (rec.top_hari > 0 ? "TOP" : po && norm(po.principal) === norm(rec.vendor_nama) ? po.terminEff : "TOP"),
     }).select().single();
     if (error) throw error;
     st.vendors.push(data);
@@ -629,6 +646,16 @@
     if (!rec.no_invoice) return msg("#payMsg", "No invoice / PI wajib diisi.");
     if (form.elements.nominal.value.trim() && rec.nominal == null) return msg("#payMsg", "Nominal tidak valid. Contoh: 25.000.000");
     const po = formPo(rec);
+    if (!editingPay) {
+      // Cegah dobel: invoice yang sama -> buka tagihan lama; nominal sama di PO yang sama / nomor mirip -> konfirmasi
+      const dup = st.pays.find((x) => invKey(x.vendor_nama, x.no_invoice) === invKey(rec.vendor_nama, rec.no_invoice));
+      if (dup) return offerExisting(dup, rec);
+      const twin = st.pays.find((x) => (po && x.po_id === po.id && rec.nominal != null && x.nominal != null && Number(x.nominal) === rec.nominal)
+        || (norm(x.vendor_nama) === norm(rec.vendor_nama) && similarInvoice(x.no_invoice, rec.no_invoice)));
+      if (twin && !confirm(`Kemungkinan dobel: sudah ada tagihan ${twin.vendor_nama} · ${twin.no_invoice}` +
+        `${twin.nominal != null ? ` (${twin.mata_uang || "IDR"} ${fmtRp(Number(twin.nominal))})` : ""}, status ${STATUS[twin.status].label}.\n\n` +
+        `Jika ini invoice yang sama, klik Batal lalu edit tagihan itu.\nTetap tambah tagihan baru?`)) return;
+    }
     rec.po_id = po?.id ?? null;
     const preview = enrichPay({ ...rec, id: 0 });
     rec.dokumen_cocok = form.elements.dokumen_cocok.checked ? true : (editingPay ? st.pays.find((x) => x.id === editingPay)?.dokumen_cocok ?? null : null);
@@ -654,14 +681,59 @@
       if (error) throw error;
       const i = st.pays.findIndex((x) => x.id === data.id);
       if (i >= 0) st.pays[i] = data; else st.pays.push(data);
+      await refreshPo(data.po_id);  // termin/TOP PO yang kosong ikut terisi dari tagihan (trigger database)
       $("#payModal").hidden = true;
       rebuild(); buildOptions(); render();
       if ($("#payDrawer").classList.contains("open")) openDrawer(data.po_id || `t${data.id}`);
       toast(wasEdit ? "Tagihan diperbarui." : "Tagihan ditambahkan.");
     } catch (err) {
       const m = authError(err);
-      msg("#payMsg", /duplicate key|payment_requests_invoice_key/i.test(m) ? "No invoice ini sudah tercatat untuk vendor yang sama." : `Gagal menyimpan: ${m}`);
+      msg("#payMsg", /duplicate key|payment_requests_invoice_key/i.test(m)
+        ? "No invoice ini sudah tercatat untuk vendor yang sama (mungkin baru masuk dari email). Klik ⟳ Muat ulang, lalu edit tagihan yang sudah ada — jangan menambah akhiran nomor."
+        : `Gagal menyimpan: ${m}`);
     } finally { btn.disabled = false; }
+  }
+
+  // Kunci sama dengan unique index payment_requests_invoice_key: vendor (huruf kecil) + no invoice tanpa spasi (huruf besar)
+  const invKey = (v, n) => `${norm(v)}|${(n || "").replace(/\s+/g, "").toUpperCase()}`;
+  // "INV/AS/42/XI/26" vs "INV/AS/42/XI/26-01" / ".../002": nomor yang satu diawali nomor yang lain
+  function similarInvoice(a, b) {
+    const x = (a || "").replace(/\s+/g, "").toUpperCase(), y = (b || "").replace(/\s+/g, "").toUpperCase();
+    if (x.length < 5 || y.length < 5 || x === y) return false;
+    return x.startsWith(y) || y.startsWith(x);
+  }
+
+  // Invoice sudah ada: buka tagihan lama, pindahkan isian yang baru diketik, user tinggal periksa & simpan
+  function offerExisting(dup, typed) {
+    if (!confirm(`No invoice ${dup.no_invoice} untuk ${dup.vendor_nama} sudah tercatat (status ${STATUS[dup.status].label}).\n\n` +
+      "Buka tagihan itu untuk diedit? Isian yang baru Anda ketik akan dipindahkan ke sana, tinggal periksa lalu Simpan.")) {
+      return msg("#payMsg", "No invoice ini sudah tercatat untuk vendor yang sama. Edit tagihan yang sudah ada — jangan menambah akhiran nomor.");
+    }
+    openPayForm(dup.id);
+    const form = $("#payForm");
+    PAY_FIELDS.forEach((k) => {
+      const el = form.elements[k], v = typed[k];
+      if (!el || ["vendor_nama", "no_invoice", "entitas"].includes(k)) return;
+      if (el.type === "checkbox") { if (v) el.checked = true; return; }
+      if (v == null || (k === "status" && v === "belum_lengkap")) return;
+      el.value = k === "nominal" ? Number(v).toLocaleString("id-ID") : v;
+    });
+    updateCalc();
+    msg("#payMsg", "Isian baru sudah dipindahkan ke tagihan yang sudah ada. Periksa, lalu klik Simpan.", "ok");
+  }
+
+  // Status ikut tanggal yang diisi (sama dengan trigger payment_requests_auto di database)
+  const DATE_STATUS = { tgl_dibayar: "Tgl dibayar", tgl_diajukan: "Tgl diajukan", rencana_bayar: "Rencana bayar" };
+  function autoStatus(e) {
+    const k = e.target.name;
+    if (!DATE_STATUS[k] || !e.target.value) return;
+    const orig = editingPay ? st.pays.find((x) => x.id === editingPay) : null;
+    if (orig && orig[k] === e.target.value) return;
+    const s = $("#payForm").elements.status, before = s.value;
+    if (k === "tgl_dibayar") s.value = "dibayar";
+    else if (k === "tgl_diajukan" && ["belum_lengkap", "siap_diajukan", "pending", "ditolak"].includes(s.value)) s.value = "diajukan";
+    else if (k === "rencana_bayar" && s.value === "diajukan") s.value = "dijadwalkan";
+    if (s.value !== before) msg("#payMsg", `Status otomatis jadi "${STATUS[s.value].label}" karena ${DATE_STATUS[k]} diisi.`, "ok");
   }
 
   async function markPaid(id) {
@@ -855,7 +927,7 @@
     $("#beliForm").addEventListener("submit", savePo);
     $("#payForm").addEventListener("submit", savePay);
     $("#payForm").addEventListener("input", updateCalc);
-    $("#payForm").addEventListener("change", updateCalc);
+    $("#payForm").addEventListener("change", (e) => { autoStatus(e); updateCalc(); });
     $("#vendorForm").addEventListener("submit", saveVendor);
     $("#vendorNew").addEventListener("click", () => { $("#vendorForm").reset(); $("#vendorForm").elements.id.value = ""; msg("#vendorMsg", ""); });
     $("#vendorTable").addEventListener("click", (e) => {

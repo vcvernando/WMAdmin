@@ -399,7 +399,7 @@
             <option value="DP">DP + pelunasan</option>
           </select>
         </label>
-        <label>TOP (hari) <span class="hint">kosong = ikut PO / vendor</span><input name="top_hari" type="number" min="0" max="365" /></label>
+        <label>TOP (hari) <span class="hint">diisi = termin TOP · kosong = ikut PO / vendor</span><input name="top_hari" type="number" min="0" max="365" /></label>
         <label>Dasar hitung TOP
           <select name="dasar_top">
             <option value="">Ikut vendor</option>
@@ -434,11 +434,11 @@
             <option value="ditolak">Ditolak</option>
           </select>
         </label>
-        <label>Tgl diajukan<input name="tgl_diajukan" type="date" /></label>
+        <label>Tgl diajukan <span class="hint">diisi = status Diajukan</span><input name="tgl_diajukan" type="date" /></label>
         <label>No pengajuan / voucher<input name="no_pengajuan" /></label>
         <label>PIC finance<input name="pic_finance" /></label>
-        <label>Rencana bayar <span class="hint">kosong = otomatis</span><input name="rencana_bayar" type="date" /></label>
-        <label>Tgl dibayar<input name="tgl_dibayar" type="date" /></label>
+        <label>Rencana bayar <span class="hint">dari finance = Dijadwalkan · kosong = otomatis</span><input name="rencana_bayar" type="date" /></label>
+        <label>Tgl dibayar <span class="hint">diisi = status Dibayar</span><input name="tgl_dibayar" type="date" /></label>
         <label>No bukti transfer<input name="no_bukti_transfer" /></label>
         <label class="span2">Alasan pending / ditolak<input name="alasan" /></label>
         <label class="span3">Catatan<textarea name="catatan" rows="2"></textarea></label>
@@ -477,7 +477,7 @@
             <option value="DP">DP + pelunasan</option>
           </select>
         </label>
-        <label>TOP (hari)<input name="top_hari" type="number" min="0" max="365" /></label>
+        <label>TOP (hari) <span class="hint">diisi = TOP · tagihan yang belum dibayar ikut berubah</span><input name="top_hari" type="number" min="0" max="365" /></label>
         <label class="check"><input type="checkbox" name="internal" /> PO internal (potong antar company)</label>
         <label>No AJU / PIB<input name="no_aju" /></label>
         <label>Status
