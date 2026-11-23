@@ -318,7 +318,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 .act-group { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 
 /* ===== Pembayaran Vendor ===== */
-.pay-filter-row { grid-template-columns: minmax(200px, 2.4fr) repeat(4, minmax(0, 1fr)); }
+.pay-filter-row { grid-template-columns: minmax(200px, 2.2fr) repeat(5, minmax(0, 1fr)); }
 .pay-table td { overflow: hidden; }
 .docs { display: flex; gap: 3px; flex-wrap: wrap; }
 .doc { font-size: 9.5px; font-weight: 700; padding: 1px 4px; border-radius: 4px; background: var(--gray-bg); color: #9aa3af; border: 1px solid var(--line); }
@@ -334,7 +334,7 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 .req { color: var(--red); }
 #payCalc { margin: 0; padding: 8px 10px; background: var(--blue-bg); border-radius: 8px; color: var(--ink); }
 #payCalc:empty { display: none; }
-.vendor-form { grid-template-columns: 2fr .8fr 1.4fr .8fr 1.2fr 1.2fr auto; align-items: end; margin-bottom: 4px; }
+.vendor-form { grid-template-columns: 2fr .7fr 1.3fr .9fr auto .7fr 1fr 1fr auto; align-items: end; margin-bottom: 4px; }
 .vendor-form-actions { display: flex; gap: 6px; }
 
 /* Menu Tampilan (pilih kolom & bagian) */
@@ -448,4 +448,18 @@ th.sorted-desc::after { content: " ▼"; font-size: 9px; }
 @media (max-width: 1099px) {
   .trk-filter-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .trk-table { min-width: 1000px; }
+}
+
+/* ===== PO Pembelian & Bayar: rincian tagihan di drawer ===== */
+.drawer-sub { margin: 20px 0 8px; font-size: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.pay-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fbfcfe; }
+.pay-card-head { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 13px; }
+.pay-card dl { margin-top: 8px; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 12px; }
+.drawer-actions.small { margin-top: 8px; }
+.drawer-actions.small .btn { padding: 4px 10px; font-size: 12px; }
+.btn.light.danger { color: var(--red); background: #fff; }
+.vendor-form label.check { padding-bottom: 8px; }
+.act[data-pact="addpay"] { width: auto; padding: 0 5px; font-size: 10.5px; font-weight: 700; color: var(--green); }
+@media (min-width: 1100px) and (max-width: 1439px) {
+  .pay-table .c-upd { display: none; }
 }

@@ -1125,7 +1125,7 @@
     $("#vpReset").addEventListener("click", () => { view = { cols: {}, secs: {} }; saveView(); applyView(); });
   }
 
-  // Dipakai modul lain (payments.js)
+  // Dipakai modul lain (purchase.js, tracker.js)
   window.WM = { sb, me: () => me, toast, esc, msg, authError, isoToday, fmtDate, fmtDateShort, fmtDateTime, ICON };
 
   // ---------- Start ----------

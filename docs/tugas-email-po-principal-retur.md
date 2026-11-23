@@ -1,6 +1,6 @@
 # Tugas terjadwal: Email → Supabase (PO Principal & COS Retur)
 
-Data tracker **PO Principal** dan **COS Retur** sekarang ada di Supabase (tabel `po_principal` dan `cos_retur`). Keduanya tampil di dashboard https://wmadmin.vercel.app pada tab 🚢 PO Principal dan ↩ COS Retur. Google Sheet "Tracker PO Principal & COS Retur" tidak dipakai lagi.
+Data tracker **PO Principal** dan **COS Retur** sekarang ada di Supabase (tabel `po_principal` dan `cos_retur`). PO tampil di dashboard https://wmadmin.vercel.app pada tab 🧾 PO Pembelian & Bayar (digabung dengan tagihan & jadwal bayar), retur pada tab ↩ COS Retur. Google Sheet "Tracker PO Principal & COS Retur" tidak dipakai lagi.
 
 Ubah dua tugas lama di **Cowork laptop**. Ganti prompt-nya dengan teks di bawah dan tambahkan connector **Supabase**. Jadwal dan folder tetap sama:
 
@@ -48,6 +48,7 @@ Tugas rutin: perbarui tracker PO PEMBELIAN (PO Principal) di database Supabase d
   - email_ref: subjek email
   - catatan
   - tgl_email_pertama: tanggal email pertama yang menyebut PO ini
+  - termin (opsional): TOP, CBD, Exwork, atau DP, HANYA bila tertulis jelas di PO/PI/email (mis. "CBD", "cash before delivery", "100% before shipment", "EXW", "Ex-works", "T/T in advance" = CBD, "30 days after delivery" = TOP); top_hari bila TOP disebut jumlah harinya
 - Jika beberapa email membahas PO yang sama, gabungkan jadi satu objek dengan update_terakhir/tgl_update dari email TERBARU.
 - Jangan menebak. Jika tidak yakin, isi yang pasti saja, set status "Perlu Cek", dan jelaskan di catatan.
 - JANGAN isi kolom selesai (dicentang admin di dashboard).
@@ -65,10 +66,13 @@ Tugas rutin: perbarui tracker PO PEMBELIAN (PO Principal) di database Supabase d
   - Catatan ditambahkan, bukan ditimpa.
   - Kolom selesai tidak pernah diubah.
   - Baris yang ambigu dilewati dan muncul di skipped_rows.
+- Bila ada objek dengan termin, setelah itu panggil juga (hanya mengisi termin yang masih kosong, tidak menimpa isian admin):
+  `select public.set_po_termin($t$[{"no_po":"...","termin":"CBD","top_hari":null}, ...]$t$::jsonb);`
+- PO ke vendor internal (KIM, ABCD, ISI, Servisindo/ISS) tetap dicatat; dashboard otomatis menandainya internal (TOP 30) dan menyembunyikannya dari daftar utama.
 - JANGAN menjalankan insert/update/delete langsung ke tabel.
 
 ## Penutup
-- Jika ada PO baru, perubahan status penting, item "Perlu Cek", atau skipped_rows, kirim ringkasan singkat ke Anes dan sebutkan dashboard https://wmadmin.vercel.app (tab 🚢 PO Principal). Sebutkan juga PO yang sudah dicentang selesai tapi menerima email baru. Jika tidak ada perubahan, tidak perlu notifikasi.
+- Jika ada PO baru (vendor eksternal), perubahan status penting, item "Perlu Cek", atau skipped_rows, kirim ringkasan singkat ke Anes dan sebutkan dashboard https://wmadmin.vercel.app (tab 🧾 PO Pembelian & Bayar). PO internal cukup disebut jumlahnya. Sebutkan juga PO yang sudah dicentang selesai tapi menerima email baru. Jika tidak ada perubahan, tidak perlu notifikasi.
 - Jika laptop tidak bisa dijangkau atau connector Supabase gagal, jangan menulis apa pun; laporkan bahwa proses dilewati dan bisa dijalankan manual.
 ```
 

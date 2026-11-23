@@ -39,7 +39,7 @@ Format lain disimpan sebagai tanggal kosong (PO tidak punya umur dan tidak masuk
 
 ## Struktur
 ```
-public/            # file yang di-deploy (index.html, app.js, payments.js, tracker.js, styles.css, config.js)
+public/            # file yang di-deploy (index.html, app.js, purchase.js, tracker.js, styles.css, config.js)
 supabase/migrations/  # skema tabel, fungsi ingest email + RLS
 vercel.json
 ```
@@ -68,24 +68,24 @@ Isian dashboard, Ceklis Selesai, target kirim, dan alasan tidak pernah ditimpa; 
 tidak diimpor ulang; data dari email tanpa No PO yang jelas ditolak (dilaporkan "perlu cek") agar tidak ganda.
 Fungsi ini tidak bisa dipanggil dari browser.
 
-## Pembayaran Vendor (tab 💳)
-Memantau pengajuan pembayaran vendor ke Finance (umumnya entitas IVP) sampai dibayar, agar tidak ada yang terlewat.
-- **Jatuh tempo** = tanggal dasar + TOP. Dasar default *barang diterima gudang* (bisa per vendor/tagihan: tanggal invoice / dokumen lengkap).
-- **Rencana bayar** = Kamis terdekat dari jatuh tempo; paling cepat Kamis minggu berikutnya setelah **dokumen fisik lengkap**
-  (invoice + faktur pajak + surat jalan). Dokumen belum lengkap = belum bisa dijadwalkan. Finance bisa mengisi tanggal manual.
-- Peringatan: *Terlewat finance* (sudah diajukan, lewat Kamis/Jumat rencana, belum dibayar), *Lewat jatuh tempo*, *Jadwal mundur* (dokumen telat),
-  *Dokumen belum lengkap*, *Siap, belum diajukan*. Panel kanan: jadwal Kamis/Jumat ini & minggu depan.
-- Master vendor (🏢 Vendor): TOP & dasar hitung default. Vendor baru otomatis ditambahkan saat tagihan disimpan.
-- Data dari email: tugas Cowork `docs/tugas-email-pembayaran.md` → `ingest_payment_requests()` (kunci vendor + no invoice, status hanya naik).
-- Hak akses sama dengan Selling PO (lihat & ubah: akun disetujui; hapus: admin).
+## PO Pembelian & Bayar (tab 🧾)
+Gabungan tracker PO Principal + pembayaran vendor: satu baris = satu PO ke principal/vendor, beserta tagihan & jadwal bayarnya
+(satu PO bisa punya beberapa tagihan: barang, freight, surveyor, bea cukai). Tagihan otomatis ditautkan ke PO lewat No PO (`find_po_id`).
+- **PO internal** (KIM, ABCD, ISI, Servisindo/ISS; atau vendor yang ditandai internal di 🏢) = potong-potongan antar company, TOP 30,
+  **disembunyikan default** & tanpa peringatan. Lihat lewat filter *PO internal* / *Semua PO*.
+- **Termin** per PO / vendor / tagihan: `TOP`, `CBD`, `Exwork`, `DP`. Vendor eksternal yang termin-nya belum diisi dianggap CBD (tanda `CBD?`).
+  - **CBD / Exwork**: bayar sebelum barang dikirim/diambil. Begitu PI/invoice diterima → wajib diajukan; rencana bayar = Kamis minggu berikutnya
+    setelah PI diterima. Faktur/SJ tidak dipersyaratkan. PO berstatus PO Dikirim / Konfirmasi Principal / Pembayaran dengan tagihan belum lunas
+    = **Tertahan bayar (CBD)**.
+  - **TOP**: jatuh tempo = tanggal dasar (default barang diterima gudang) + TOP → Kamis terdekat; paling cepat Kamis minggu berikutnya setelah
+    dokumen fisik lengkap (invoice + faktur pajak + surat jalan).
+- Peringatan: Tertahan bayar (CBD), Terlewat / lewat jatuh tempo, Siap belum diajukan, Dokumen belum lengkap, Bayar minggu ini, Perlu cek,
+  > 7 hari tanpa update, Siap dicentang selesai (status akhir & semua tagihan lunas). Panel kanan: jadwal bayar Kamis/Jumat.
+- Data dari email: `ingest_po_principal()` + `set_po_termin()` (docs/tugas-email-po-principal-retur.md, Prompt A) dan
+  `ingest_payment_requests()` (docs/tugas-email-pembayaran.md).
 
-## PO Principal (tab 🚢) & COS Retur (tab ↩)
-Pengganti Google Sheet "Tracker PO Principal & COS Retur" (data awal sudah diimpor: 52 PO, 33 retur).
-- Setiap PO pembelian / kasus retur dipantau sampai dicentang **✔ Selesai** (kolom ✔ di tabel atau tombol di View).
-- **Perlu perhatian** (panel kanan & chip filter): status *Perlu Cek*, *Pending*, **> 7 hari tanpa update**,
-  dan status akhir (Barang Masuk Gudang / Selesai / Cancelled) yang belum dicentang selesai.
-- KPI per tahap (PO: menunggu principal, shipping/customs; Retur: request/COS dibuat, unit di gudang/SRV), filter status,
-  principal / tindakan, pencarian, CSV, Tambah/Edit/View, Hapus (admin).
-- Data dari email: tugas Cowork `docs/tugas-email-po-principal-retur.md` → `ingest_po_principal()` / `ingest_cos_retur()`
-  (satu No PO / kasus = satu baris; status hanya diganti bila email lebih baru; catatan ditambahkan; kolom selesai tidak disentuh).
-  W per tracker disimpan di `tracker_sync_log`.
+## COS Retur (tab ↩)
+Pengganti tab COS Retur di Google Sheet "Tracker PO Principal & COS Retur" (data awal: 33 retur).
+- Setiap kasus retur dipantau sampai dicentang **✔ Selesai**. Perlu perhatian: Perlu Cek, Pending, > 7 hari tanpa update,
+  status akhir yang belum dicentang. Filter tindakan, pencarian, CSV, Tambah/Edit/View, Hapus (admin).
+- Data dari email: `ingest_cos_retur()` (docs/tugas-email-po-principal-retur.md, Prompt B). W disimpan di `tracker_sync_log`.
