@@ -36,7 +36,11 @@ Tugas rutin: perbarui data PO PENJUALAN (Selling PO) di database Supabase dari l
   - cos (IH-SOTP-…/IH-SONP-…), posting_cos (IH-SITP-…), no_gp (GP-HS-2026-xxx), progres (status/unit indent), notes
   - Jangan isi selesai, target_kirim, atau alasan_tunda (diatur admin di dashboard).
 - Satu No PO = satu objek. Jika beberapa email membahas PO yang sama, gabungkan informasinya (ambil yang paling lengkap).
-- Jangan menebak. Jika No PO tidak jelas, JANGAN kirim objeknya; masukkan ke daftar "Perlu cek" di ringkasan. Informasi yang ragu-ragu tulis di notes dengan awalan "Perlu cek:".
+- Email COS / GP / posting sering membalas thread yang subjeknya TIDAK memuat No PO, mis. Fin13 "Mohon dibantu approval tuk IH-SOTP-2611-0064 · SARANA GLOBAL PRIMA" di thread "RE: PO IVP - ND86CMB (BINUS-KEK)". Untuk email seperti ini:
+  1. Cari No PO di seluruh isi thread (termasuk kutipan email sebelumnya) dan di nama lampiran.
+  2. Jika tetap tidak ada, cocokkan dengan PO yang masih aktif: `select id, no_po, request_by, customer, project, details, progres, notes, cos, posting_cos, no_gp from public.selling_po where not selesai order by id;` Pakai kode/nama proyek di subjek (teks dalam kurung, mis. BINUS-KEK), customer yang disebut di baris COS/GP (mis. SARANA GLOBAL PRIMA), dan tipe unit (mis. ND86CMB = Maxhub 86 inch). Untuk COS, utamakan baris yang COS-nya masih kosong; untuk posting COS / GP, baris yang COS-nya sama dengan yang disebut email.
+  3. Hanya bila tepat SATU baris yang cocok, kirim objek dengan no_po PERSIS seperti di baris itu beserta cos / posting_cos / no_gp / progres dari email, dan sebutkan di ringkasan "dicocokkan lewat subjek: <subjek> → <no_po>". Bila tidak ada atau lebih dari satu kandidat, jangan kirim; masukkan ke "Perlu cek" beserta daftar kandidatnya (No PO + project + customer).
+- Jangan menebak. Jika No PO tidak jelas dan tidak bisa dicocokkan dengan aturan di atas, JANGAN kirim objeknya; masukkan ke daftar "Perlu cek" di ringkasan. Informasi yang ragu-ragu tulis di notes dengan awalan "Perlu cek:".
 
 ## Menulis ke Supabase
 - Panggil SATU kali dengan semua PO (bagi beberapa panggilan bila JSON > 1,5 MB):
@@ -48,6 +52,6 @@ Tugas rutin: perbarui data PO PENJUALAN (Selling PO) di database Supabase dari l
 
 ## Penutup
 - Hasil fungsi berisi: rows, inserted, updated, skipped_deleted, conflicts, tanpa_no_po, inserted_po, updated_po, conflict_rows, tanpa_no_po_rows.
-- Jika ada PO baru/dilengkapi atau item "Perlu cek", kirim ringkasan singkat ke Anes: No PO baru (+ customer), PO yang dilengkapi, dan item Perlu cek. Ingatkan bahwa target kirim otomatis = Request date + 5 hari kerja dan bisa dilihat di dashboard https://wmadmin.vercel.app. Jika tidak ada perubahan, tidak perlu notifikasi.
+- Jika ada PO baru/dilengkapi atau item "Perlu cek", kirim ringkasan singkat ke Anes: No PO baru (+ customer), PO yang dilengkapi (termasuk yang dicocokkan lewat subjek), dan item Perlu cek beserta kandidatnya. Ingatkan bahwa target kirim otomatis = Request date + 5 hari kerja dan bisa dilihat di dashboard https://wmadmin.vercel.app. Jika tidak ada perubahan, tidak perlu notifikasi.
 - Jika laptop tidak bisa dijangkau atau connector Supabase gagal, jangan menulis apa pun; laporkan bahwa proses dilewati dan bisa dijalankan manual.
 ```
