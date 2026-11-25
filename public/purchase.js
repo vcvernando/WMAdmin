@@ -730,21 +730,35 @@
   // ---------- CSV ----------
   function exportCsv() {
     const rows = sorted(filtered());
-    const cols = [["tgl_po", "Tgl PO"], ["no_po", "No PO"], ["principal", "Principal"], ["jenis", "Jenis"], ["terminEff", "Termin"], ["item", "Item"], ["qty", "Qty"],
-      ["no_aju", "No AJU"], ["status", "Status PO"], ["update_terakhir", "Update terakhir"], ["tgl_update", "Tgl update"], ["bayarLabel", "Status bayar"],
-      ["tagihan", "Tagihan"], ["nextPayIso", "Rencana bayar terdekat"], ["flagsLabel", "Peringatan"], ["pic", "PIC"], ["selesai", "Selesai"]];
-    const val = (r, k) => ({
-      jenis: r.internal ? "Internal" : "Eksternal", bayarLabel: BAYAR[r.bayar], nextPayIso: toIso(r.nextPay), selesai: r.selesai ? "Ya" : "",
-      flagsLabel: r.flags.map((f) => FLAG[f].label).join(", "),
-      tagihan: r.pays.map((x) => `${x.vendor_nama} ${x.no_invoice || ""} ${x.nominal != null ? `${x.mata_uang || "IDR"} ${x.nominal}` : ""} [${STATUS[x.status].label}${x.rencana ? ` ${toIso(x.rencana)}` : ""}]`).join(" | "),
-    }[k] ?? r[k]);
-    const q = (v) => { const s = v == null ? "" : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const csv = [cols.map((c) => c[1]).join(","), ...rows.map((r) => cols.map(([k]) => q(val(r, k))).join(","))].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `po-pembelian-bayar-${isoToday()}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const D = { type: "date" };
+    const stamp = `diekspor ${fmtDateTime(new Date().toISOString())}`;
+    const scope = { eksternal: "Vendor eksternal", internal: "PO internal", semua: "Semua PO" }[st.scope];
+    W.exportXlsx(`po-pembelian-bayar-${isoToday()}.xlsx`, [
+      {
+        name: "PO Pembelian", title: `PO Pembelian & Bayar – ${rows.length} PO (${scope}) · ${stamp}`,
+        cols: [["tgl_po", "Tgl PO", D], ["no_po", "No PO"], ["principal", "Principal"], ["jenis", "Jenis"], ["terminEff", "Termin"], ["item", "Item", { w: 40 }], ["qty", "Qty"],
+          ["no_aju", "No AJU"], ["status", "Status PO"], ["update_terakhir", "Update terakhir", { w: 50 }], ["tgl_update", "Tgl update", D], ["bayarLabel", "Status bayar"],
+          ["nTagihan", "Jumlah tagihan"], ["nextPayIso", "Rencana bayar terdekat", D], ["flagsLabel", "Peringatan", { w: 40 }], ["pic", "PIC"], ["selesai", "Selesai"]],
+        rows,
+        get: (r, k) => ({
+          jenis: r.internal ? "Internal" : "Eksternal", bayarLabel: BAYAR[r.bayar], nextPayIso: toIso(r.nextPay), selesai: r.selesai ? "Ya" : "",
+          flagsLabel: r.flags.map((f) => FLAG[f].label).join(", "), nTagihan: r.pays.length || null, status: r.status || "Tagihan tanpa PO",
+        }[k] ?? r[k]),
+      },
+      {
+        name: "Tagihan", title: `Tagihan dari PO di atas – ${stamp}`,
+        cols: [["po_no", "No PO"], ["vendor_nama", "Vendor"], ["entitas", "Entitas"], ["no_invoice", "No invoice / PI"], ["tgl_invoice", "Tgl invoice", D],
+          ["nominal", "Nominal", { type: "num" }], ["mata_uang", "Mata uang"], ["termin", "Termin"], ["tgl_barang_diterima", "Barang diterima", D],
+          ["jatuhIso", "Jatuh tempo", D], ["rencanaIso", "Rencana bayar", D], ["docs", "Dokumen fisik"], ["statusLabel", "Status"], ["tgl_diajukan", "Tgl diajukan", D],
+          ["no_pengajuan", "No pengajuan"], ["tgl_dibayar", "Tgl dibayar", D], ["no_bukti_transfer", "No bukti transfer"], ["flagsLabel", "Peringatan", { w: 30 }], ["catatan", "Catatan", { w: 40 }]],
+        rows: rows.flatMap((r) => r.pays.map((x) => ({ ...x, po_no: r.no_po }))),
+        get: (x, k) => ({
+          jatuhIso: toIso(x.jatuh), rencanaIso: toIso(x.rencana), statusLabel: STATUS[x.status].label,
+          docs: x.cbd ? (x.doc_invoice ? "PI" : "") : [x.doc_invoice && "Invoice", x.doc_faktur && "Faktur", x.doc_sj && "SJ", x.doc_po && "PO"].filter(Boolean).join(" + "),
+          flagsLabel: x.flags.map((f) => PFLAG[f].label).join(", "),
+        }[k] ?? x[k]),
+      },
+    ]);
   }
 
   // "Rp 12.500.000", "12,500,000.00", "12.500.000,50", "12,5 jt", "1,2 M" -> angka

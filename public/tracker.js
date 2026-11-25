@@ -136,7 +136,7 @@
     actions.hidden = true;
     actions.innerHTML = `<button class="btn primary" data-tact="add">${esc(cfg.addLabel)}</button>
       <button class="btn ghost" data-tact="refresh" title="Muat ulang data">⟳</button>
-      <button class="btn ghost" data-tact="csv">⬇ CSV</button>`;
+      <button class="btn ghost" data-tact="csv" title="Unduh laporan Excel (.xlsx) sesuai filter">⬇ Excel</button>`;
     $("#btnUsers").before(actions);
 
     const asOf = document.createElement("span");
@@ -436,13 +436,12 @@
 
     function exportCsv() {
       const rows = sorted(filtered());
-      const q = (v) => { const s = v == null ? "" : v === true ? "Ya" : v === false ? "" : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-      const csv = [cfg.csv.map((c) => c[1]).join(","), ...rows.map((r) => cfg.csv.map(([k]) => q(r[k])).join(","))].join("\n");
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-      a.download = `${cfg.table.replace("_", "-")}-${isoToday()}.csv`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      W.exportXlsx(`${cfg.table.replace("_", "-")}-${isoToday()}.xlsx`, [{
+        name: cfg.title, title: `${cfg.title} – ${rows.length} ${cfg.noun} · diekspor ${fmtDateTime(new Date().toISOString())}`,
+        cols: cfg.csv.map(([k, label]) => [k, label, /^tgl_/.test(k) ? { type: "date" } : /update_terakhir|catatan|alasan/.test(k) ? { w: 45 } : undefined]),
+        rows,
+        get: (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "") : r[k]),
+      }]);
     }
 
     // ---------- Event ----------

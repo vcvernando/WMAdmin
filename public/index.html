@@ -115,7 +115,7 @@
         <span class="act-group" id="sellingActions">
           <button id="btnAdd" class="btn primary">＋ Tambah PO</button>
           <button id="btnRefresh" class="btn ghost" title="Muat ulang data">⟳</button>
-          <button id="btnCsv" class="btn ghost">⬇ CSV</button>
+          <button id="btnCsv" class="btn ghost" title="Unduh laporan Excel (.xlsx) sesuai filter">⬇ Excel</button>
           <button id="btnPrint" class="btn ghost">🖨 Print</button>
         </span>
         <span class="act-group" id="payActions" hidden>
@@ -123,7 +123,7 @@
           <button id="payAdd" class="btn primary">＋ Tagihan</button>
           <button id="payVendors" class="btn ghost" title="Master vendor: termin, TOP, internal/eksternal">🏢</button>
           <button id="payRefresh" class="btn ghost" title="Muat ulang data">⟳</button>
-          <button id="payCsv" class="btn ghost">⬇ CSV</button>
+          <button id="payCsv" class="btn ghost" title="Unduh laporan Excel (.xlsx) sesuai filter">⬇ Excel</button>
         </span>
         <button id="btnUsers" class="btn ghost" hidden title="Approve akun baru & kelola pengguna">✅ Approve Akun <span class="pill" id="pendingCount" hidden></span></button>
         <span class="who" id="who"></span>
@@ -143,7 +143,7 @@
     </div>
 
     <style id="viewStyle"></style>
-    <div class="layout" id="layout">
+    <div class="layout no-rem" id="layout">
       <main class="main">
         <section class="kpis" id="kpis"></section>
 
@@ -162,6 +162,15 @@
             <select id="fBy" title="Request by"><option value="">Semua request by</option></select>
             <select id="fCustomer" title="Customer"><option value="">Semua customer</option></select>
             <select id="fMonth" title="Bulan"><option value="">Semua bulan</option></select>
+            <select id="fKirim" title="Reminder kirim">
+              <option value="">Semua reminder kirim</option>
+              <option value="late">Terlambat kirim</option>
+              <option value="today">Kirim hari ini</option>
+              <option value="soon">H-1 s/d H-3</option>
+              <option value="later">Terjadwal (&gt; H-3)</option>
+              <option value="tunda">Ditunda (ada alasan)</option>
+              <option value="none">Tanpa Request date</option>
+            </select>
             <input id="fFrom" type="date" title="Request date dari" />
             <input id="fTo" type="date" title="Request date sampai" />
           </div>
@@ -172,6 +181,7 @@
             <button class="chip" data-flag="indent">Unit indent</button>
             <button class="chip" data-flag="cek">Perlu cek</button>
             <button class="chip" data-flag="old">Umur &gt; 30 hari</button>
+            <button class="chip chip-warn" data-flag="double">⚠ Kemungkinan double</button>
             <button id="btnReset" class="chip reset">✕ Reset filter</button>
           </div>
         </section>
@@ -187,6 +197,7 @@
                 <span class="lg red"></span>Dicentang belum lengkap
                 <span class="lg orange"></span>COS / Posting / GP kosong
                 <span class="lg yellow"></span>Perlu cek
+                <span class="lg dbl"></span>Kemungkinan double
               </div>
               <div class="view-menu no-print">
                 <button type="button" class="btn light" id="btnView" aria-haspopup="true" aria-expanded="false" title="Pilih kolom & bagian dashboard yang ditampilkan">⚙ Tampilan</button>
@@ -212,8 +223,8 @@
             <div class="table-wrap scroll">
               <table class="listing" id="listing">
                 <colgroup>
-                  <col class="c-date" style="width:78px" /><col class="c-by" style="width:56px" /><col class="c-po" style="width:112px" /><col class="c-cust" />
-                  <col class="c-docs" style="width:118px" /><col class="c-prog" /><col class="c-target" style="width:92px" /><col class="c-status" style="width:116px" />
+                  <col class="c-date" style="width:78px" /><col class="c-by" style="width:56px" /><col class="c-po" style="width:150px" /><col class="c-cust" />
+                  <col class="c-docs" style="width:150px" /><col class="c-prog" /><col class="c-target" style="width:92px" /><col class="c-status" style="width:116px" />
                   <col class="c-age" style="width:50px" /><col class="no-print" style="width:94px" />
                 </colgroup>
                 <thead>
@@ -264,14 +275,6 @@
       </main>
 
       <!-- Reminder pengiriman -->
-      <aside class="card reminder no-print" id="reminder">
-        <header class="card-head">
-          <h3>🚚 Reminder Pengiriman</h3>
-          <span class="hint">maks. 5 hari kerja dari Request date, sampai Ceklis Selesai dicentang</span>
-        </header>
-        <div class="rem-tiles" id="remTiles"></div>
-        <div class="rem-list scroll" id="remList"></div>
-      </aside>
     </div>
 
     <!-- ================= PEMBAYARAN VENDOR ================= -->
