@@ -324,6 +324,54 @@
 
   function startOfToday() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
 
+  // ---------- Peringatan COS / PO double ----------
+  // Ditandai bila: No PO sama tercatat > 1 baris, 1 COS dipakai > 1 PO, 1 baris berisi > 1 COS,
+  // atau 1 nomor posting COS dipakai > 1 PO. Admin bisa menandai "sudah dicek, bukan double" (cek_double_ok).
+  const normDoc = (s) => (s || "").replace(/\s+/g, "").toUpperCase();
+  const COS_RE = /[A-Z]{2,4}-SO[A-Z]{2}-\d{4}-\d{4}/g;
+  const POST_RE = /[A-Z]{2,4}-SI[A-Z]{2}-\d{4}-P?\d{4}/g;
+  function docTokens(v, re) {
+    if (blank(v) || /cancel/i.test(v)) return [];
+    const m = normDoc(v).match(re);
+    return m ? [...new Set(m)] : [normDoc(v)];
+  }
+  function markDoubles(rows) {
+    const label = (r) => `${r.no_po || "(tanpa No PO)"}${r.customer ? ` – ${r.customer}` : ""}`;
+    rows.forEach((r) => { r.dbl = []; r.dblWith = new Set(); r.cosToks = docTokens(r.cos, COS_RE); r.postToks = docTokens(r.posting_cos, POST_RE); });
+    const add = (r, text, others) => { if (!r.dbl.includes(text)) r.dbl.push(text); others.forEach((o) => r.dblWith.add(o.id)); };
+    const group = (keyOf) => {
+      const m = new Map();
+      rows.forEach((r) => keyOf(r).forEach((k) => { if (!m.has(k)) m.set(k, []); m.get(k).push(r); }));
+      return m;
+    };
+    // 1) No PO sama di lebih dari satu baris
+    for (const [, g] of group((r) => (r.noPo ? [] : [normDoc(r.no_po)]))) {
+      if (g.length < 2) continue;
+      const cosSet = new Set(g.flatMap((r) => r.cosToks));
+      g.forEach((r) => {
+        const others = g.filter((o) => o !== r);
+        add(r, `No PO sama tercatat ${g.length}x${cosSet.size > 1 ? ` dengan ${cosSet.size} COS berbeda (${[...cosSet].join(", ")})` : ""}`
+          + ` – baris lain: ${others.map((o) => `${o.request_date ? fmtDateShort(o.request_date) : "tanpa tanggal"}${o.no_gp ? `, GP ${o.no_gp}` : ""}`).join("; ")}`, others);
+      });
+    }
+    // 2) satu COS / posting COS dipakai lebih dari satu PO
+    const shared = (toksOf, name) => {
+      for (const [tok, g] of group(toksOf)) {
+        const pos = new Set(g.map((r) => (r.noPo ? `#${r.id}` : normDoc(r.no_po))));
+        if (pos.size < 2) continue;
+        g.forEach((r) => {
+          const others = g.filter((o) => (o.noPo ? `#${o.id}` : normDoc(o.no_po)) !== (r.noPo ? `#${r.id}` : normDoc(r.no_po)));
+          add(r, `${name} ${tok} juga dipakai PO ${others.map(label).join("; ")}`, others);
+        });
+      }
+    };
+    shared((r) => r.cosToks, "COS");
+    shared((r) => r.postToks, "Posting COS");
+    // 3) satu baris berisi lebih dari satu COS
+    rows.forEach((r) => { if (r.cosToks.length > 1) add(r, `1 PO berisi ${r.cosToks.length} COS: ${r.cosToks.join(", ")}`, []); });
+    rows.forEach((r) => { r.double = r.dbl.length > 0 && !r.cek_double_ok; });
+  }
+
   // Tambah n hari kerja (lewati Sabtu & Minggu). Libur nasional belum dihitung.
   function addWorkdays(iso, n) {
     const d = new Date(iso + "T00:00:00");
@@ -372,6 +420,7 @@
         if (f === "indent" && !r.indent) return false;
         if (f === "cek" && !r.cek) return false;
         if (f === "old" && !(r.age != null && r.age > 30)) return false;
+        if (f === "double" && !r.double) return false;
       }
       for (const t of terms) if (!r.hay.includes(t)) return false;
       return true;
@@ -400,9 +449,9 @@
   // RENDER
   // =====================================================================
   function render() {
+    markDoubles(state.rows);
     const rows = filtered();
     renderKpis();
-    renderReminder();
     renderStatusChart(filtered({ ignore: ["status"] }));
     renderByChart(filtered({ ignore: ["by"] }));
     renderDocsChart(rows);
@@ -425,7 +474,8 @@
       { key: "cek", label: "Perlu cek", value: aktif.filter((r) => r.cek).length, accent: "#a68a00" },
       { key: "red", label: "Dicentang blm lengkap", value: all.filter((r) => r.ditolak).length, accent: "#c62828" },
       { key: "old", label: "Umur > 30 hari", value: aktif.filter((r) => r.age != null && r.age > 30).length, accent: "#8b1d1d" },
-      { key: "all", label: "Total PO", value: all.length, accent: "#5f6b7a" },
+      { key: "late", label: "Terlambat kirim", value: all.filter((r) => r.kirim === "late").length, accent: "#c62828", title: "PO belum terkirim melewati target kirim" },
+      { key: "double", label: "⚠ Kemungkinan double", value: all.filter((r) => r.double).length, accent: "#b3261e", title: "No PO / COS / posting COS tercatat lebih dari sekali (semua PO, termasuk selesai)" },
     ];
     const activeKey = currentKpiKey();
     $("#kpis").innerHTML = k.map((x) => `
@@ -437,7 +487,10 @@
 
   function currentKpiKey() {
     const f = [...state.flags];
-    const noOther = !state.by && !state.customer && !state.month && !state.q && !state.from && !state.to && !state.kirim;
+    const noOther0 = !state.by && !state.customer && !state.month && !state.q && !state.from && !state.to;
+    if (noOther0 && state.kirim === "late" && !f.length && !state.status && state.view === "aktif") return "late";
+    if (noOther0 && !state.kirim && state.view === "all" && !state.status && f.length === 1 && f[0] === "double") return "double";
+    const noOther = noOther0 && !state.kirim;
     if (!noOther) return "";
     if (state.view === "all" && !f.length && state.status === "Dicentang belum lengkap") return "red";
     if (state.status) return "";
@@ -452,38 +505,11 @@
     if (key === "all") state.view = "all";
     else if (key === "aktif") state.view = "aktif";
     else if (key === "red") { state.view = "all"; state.status = "Dicentang belum lengkap"; }
+    else if (key === "late") { state.view = "aktif"; state.kirim = "late"; state.sort = { key: "target", dir: "asc" }; }
+    else if (key === "double") { state.view = "all"; state.flags.add("double"); state.sort = { key: "no_po", dir: "asc" }; }
     else { state.view = "aktif"; state.flags.add(key); }
     state.tab = "list";
     render();
-  }
-
-  // ---------- Reminder pengiriman ----------
-  function renderReminder() {
-    const open = state.rows.filter((r) => r.kirim);
-    const count = (k) => (k === "tunda" ? open.filter((r) => r.tunda).length : open.filter((r) => r.kirim === k).length);
-    $("#remTiles").innerHTML = ["late", "today", "soon", "tunda"].map((k) => `
-      <button class="rem-tile ${state.kirim === k ? "on" : ""}" data-kirim="${k}" style="--c:${KIRIM[k].color}">
-        <div class="n">${count(k)}</div><div class="t">${KIRIM[k].label}</div>
-      </button>`).join("");
-
-    const urgent = open.filter((r) => ["late", "today", "soon"].includes(r.kirim)).sort((a, b) => a.sisa - b.sisa || a.id - b.id);
-    const later = open.filter((r) => r.kirim === "later").sort((a, b) => a.sisa - b.sisa);
-    const item = (r) => {
-      const c = r.kirim === "later" ? "#1f5eff" : KIRIM[r.kirim].color;
-      return `<button class="rem-item" data-id="${r.id}" style="--c:${c}">
-        <div class="top"><span class="po">${esc(r.no_po || "No PO belum ada")}</span>${kirimBadge(r)}</div>
-        <div class="cust">${esc(r.customer || "–")}${r.project ? ` · ${esc(r.project)}` : ""}</div>
-        <div class="cust">Target: ${r.target ? fmtDate(r.target) : "–"}${r.targetAuto ? " (otomatis)" : ""} · ${esc(r.status)}</div>
-        ${r.tunda ? `<div class="cust tunda">⏸ ${esc(r.alasan_tunda)}</div>` : ""}
-      </button>`;
-    };
-    let html = "";
-    if (urgent.length) html += `<div class="rem-group">Perlu tindakan (${urgent.length})</div>` + urgent.map(item).join("");
-    if (later.length) html += `<div class="rem-group">Terjadwal (${later.length})</div>` + later.slice(0, 15).map(item).join("");
-    const none = count("none");
-    if (none) html += `<div class="rem-empty">${none} PO aktif belum punya Request date, jadi target kirim tidak bisa dihitung. Lengkapi lewat ✎ Edit.</div>`;
-    if (!open.length) html = `<div class="rem-empty">Tidak ada PO yang menunggu pengiriman. 🎉</div>`;
-    $("#remList").innerHTML = html;
   }
 
   // ---------- Charts ----------
@@ -655,10 +681,11 @@
       const tags = [
         r.indent ? `<span class="badge b-purple">Indent</span>` : "",
         r.cek || r.cekNote ? `<span class="badge b-yellow">Perlu cek</span>` : "",
+        r.double ? `<span class="badge b-red" title="${esc(r.dbl.join("\n"))}">⚠ Double?</span>` : "",
       ].join("");
       const prog = [r.progres, r.notes].filter((v) => !blank(v)).join(" · ");
       const docOrange = r.aktif && (r.noCos || r.noGp || r.noPosting);
-      return `<tr class="${r.tone}" data-id="${r.id}">
+      return `<tr class="${r.double && !r.tone ? "row-dbl" : r.tone}" data-id="${r.id}">
         <td class="c-date">${r.request_date ? fmtDateShort(r.request_date) : `<span class="missing">–</span>`}</td>
         <td class="c-by"><span class="ell" title="${esc(r.request_by)}">${blank(r.request_by) ? dash : esc(r.request_by)}</span></td>
         <td class="po c-po"><span class="ell" title="${esc(r.no_po)}">${r.noPo ? `<span class="missing">Belum ada</span>` : esc(r.no_po)}</span></td>
@@ -726,6 +753,7 @@
     $("#fMonth").value = state.month;
     $("#fFrom").value = state.from;
     $("#fTo").value = state.to;
+    $("#fKirim").value = state.kirim;
     $$("#flagChips [data-flag]").forEach((b) => b.classList.toggle("on", state.flags.has(b.dataset.flag)));
     $$(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === state.tab));
     $("#paneList").hidden = state.tab !== "list";
@@ -763,14 +791,11 @@
     $("#kpis").addEventListener("click", (e) => { const k = e.target.closest("[data-kpi]"); if (k) applyKpi(k.dataset.kpi); });
     $$(".tab").forEach((tb) => tb.addEventListener("click", () => { state.tab = tb.dataset.tab; render(); }));
 
-    $("#remTiles").addEventListener("click", (e) => {
-      const k = e.target.closest("[data-kirim]"); if (!k) return;
-      const v = k.dataset.kirim;
-      state.kirim = state.kirim === v ? "" : v;
-      if (state.kirim) { state.view = "aktif"; state.status = ""; state.tab = "list"; state.sort = { key: "target", dir: "asc" }; }
+    $("#fKirim").addEventListener("change", (e) => {
+      state.kirim = e.target.value;
+      if (state.kirim) { state.view = "aktif"; state.tab = "list"; state.sort = { key: "target", dir: "asc" }; }
       render();
     });
-    $("#remList").addEventListener("click", (e) => { const it = e.target.closest("[data-id]"); if (it) openDrawer(+it.dataset.id); });
 
     $$("#listing thead th[data-sort]").forEach((th) => th.addEventListener("click", () => {
       const key = th.dataset.sort;
@@ -792,6 +817,8 @@
     $("#drawerBody").addEventListener("click", (e) => {
       const b = e.target.closest("[data-act]"); if (!b) return;
       const id = +b.dataset.id;
+      if (b.dataset.act === "open") { openDrawer(id); return; }
+      if (b.dataset.act === "dblok") { toggleDoubleOk(id); return; }
       closeDrawer();
       if (b.dataset.act === "edit") openForm(id); else deletePo(id);
     });
@@ -828,6 +855,15 @@
       ${kirimBadge(r)}
       ${r.indent ? `<span class="badge b-purple">Indent</span>` : ""}
       ${r.cek || r.cekNote ? `<span class="badge b-yellow">Perlu cek</span>` : ""}
+      ${r.double ? `<span class="badge b-red">⚠ Kemungkinan double</span>` : ""}
+      ${r.dbl.length ? `<div class="dbl-box">
+        <h4>${r.cek_double_ok ? "✔ Sudah dicek: bukan double" : "⚠ Kemungkinan COS / PO double"}</h4>
+        <ul>${r.dbl.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+        ${[...r.dblWith].length ? `<div>Lihat: ${[...r.dblWith].map((oid) => { const o = state.rows.find((x) => x.id === oid); return o ? `<button class="link" data-act="open" data-id="${o.id}">${esc(o.no_po || "#" + o.id)}${o.request_date ? ` (${fmtDateShort(o.request_date)})` : ""}</button>` : ""; }).join(" · ")}</div>` : ""}
+        <div class="drawer-actions small">
+          <button class="btn light" data-act="dblok" data-id="${r.id}">${r.cek_double_ok ? "↺ Tampilkan peringatan lagi" : "✔ Sudah dicek, bukan double"}</button>
+        </div>
+      </div>` : ""}
       <dl>
         ${f("Request date", r.request_date ? fmtDate(r.request_date) : "")}
         ${f("Request by", r.request_by)}
@@ -853,6 +889,21 @@
     $("#drawer").setAttribute("aria-hidden", "false");
   }
   function closeDrawer() { $("#drawer").classList.remove("open"); $("#drawer").setAttribute("aria-hidden", "true"); }
+
+  async function toggleDoubleOk(id) {
+    const r = state.rows.find((x) => x.id === id);
+    if (!r) return;
+    const next = !r.cek_double_ok;
+    const ids = [id, ...r.dblWith];
+    const names = [...new Set(ids.map((i) => state.rows.find((x) => x.id === i)?.no_po || `#${i}`))].join(", ");
+    if (next && !confirm(`Tandai ${ids.length} baris terkait (${names}) sudah dicek dan BUKAN double?\n(mis. 1 PO dikirim bertahap dengan GP berbeda). Peringatannya akan disembunyikan.`)) return;
+    const { data, error } = await sb.from(CFG.TABLE).update({ cek_double_ok: next }).in("id", ids).select();
+    if (error) return toast(`Gagal: ${authError(error)}`, "err");
+    data.forEach((d) => { const i = state.rows.findIndex((x) => x.id === d.id); if (i >= 0) state.rows[i] = enrich(d); });
+    render();
+    openDrawer(id);
+    toast(next ? "Ditandai bukan double." : "Peringatan double ditampilkan lagi.");
+  }
 
   // ---------- Tambah / Edit ----------
   function openForm(id) {
@@ -889,6 +940,19 @@
     if (rec.selesai && (!rec.no_po || !rec.cos || !rec.no_gp)) {
       if (!confirm("No PO / COS / No. GP belum lengkap. Tetap centang Selesai? (PO akan tampil merah: Dicentang belum lengkap)")) return;
     }
+    const clash = [];
+    const others = state.rows.filter((x) => x.id !== editingId);
+    if (rec.no_po) {
+      const same = others.filter((x) => !x.noPo && normDoc(x.no_po) === normDoc(rec.no_po));
+      if (same.length) clash.push(`No PO ${rec.no_po} sudah ada (${same.map((x) => `COS ${x.cos || "–"}, ${x.request_date ? fmtDate(x.request_date) : "tanpa tanggal"}`).join("; ")})`);
+    }
+    const cosToks = docTokens(rec.cos, COS_RE);
+    if (cosToks.length > 1) clash.push(`Kolom COS berisi ${cosToks.length} nomor: ${cosToks.join(", ")}`);
+    for (const t of cosToks) {
+      const used = others.filter((x) => x.cosToks?.includes(t) && normDoc(x.no_po) !== normDoc(rec.no_po));
+      if (used.length) clash.push(`COS ${t} sudah dipakai PO ${used.map((x) => `${x.no_po || "(tanpa No PO)"} – ${x.customer || ""}`).join("; ")}`);
+    }
+    if (clash.length && !confirm(`⚠ Kemungkinan double:\n- ${clash.join("\n- ")}\n\nCek lagi sebelum menyimpan. Tetap simpan?`)) return;
     const btn = $("#poSave"); btn.disabled = true;
     const wasEdit = !!editingId;
     const q = wasEdit
@@ -1005,23 +1069,84 @@
   }
 
   // ---------- CSV ----------
+  // ---------- Laporan Excel ----------
+  // Library SheetJS dimuat hanya saat tombol Excel diklik.
+  const XLSX_SRC = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+  let xlsxLoading = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    xlsxLoading = xlsxLoading || new Promise((resolve, reject) => {
+      const sc = document.createElement("script");
+      sc.src = XLSX_SRC;
+      sc.onload = () => resolve(window.XLSX);
+      sc.onerror = () => { xlsxLoading = null; reject(new Error("Library Excel gagal dimuat. Cek koneksi internet lalu coba lagi.")); };
+      document.head.appendChild(sc);
+    });
+    return xlsxLoading;
+  }
+  const excelSerial = (iso) => { const [y, m, d] = iso.slice(0, 10).split("-").map(Number); return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / DAY; };
+  // sheets: [{ name, title, cols: [[key, label, { type: "date" | "num", w }]], rows, get(r, key) }]
+  async function exportXlsx(filename, sheets) {
+    let X;
+    try { X = await loadXlsx(); } catch (err) { toast(err.message, "err"); return; }
+    const wb = X.utils.book_new();
+    for (const sh of sheets) {
+      const head = sh.cols.map((c) => c[1]);
+      const body = sh.rows.map((r) => sh.cols.map(([k, , o]) => {
+        let v = sh.get ? sh.get(r, k) : r[k];
+        if (v == null || v === "") return null;
+        if (o?.type === "date") return typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? excelSerial(v) : v;
+        if (typeof v === "boolean") return v ? "Ya" : "";
+        return v;
+      }));
+      const top = sh.title ? [[sh.title], []] : [];
+      const ws = X.utils.aoa_to_sheet([...top, head, ...body]);
+      const hr = top.length;
+      sh.cols.forEach(([, , o], c) => {
+        if (o?.type !== "date") return;
+        for (let i = 0; i < body.length; i++) {
+          const cell = ws[X.utils.encode_cell({ r: hr + 1 + i, c })];
+          if (cell && cell.t === "n") cell.z = "d mmm yyyy";
+        }
+      });
+      ws["!cols"] = sh.cols.map(([, label, o], c) => ({
+        wch: o?.w || Math.min(48, Math.max(label.length + 2, o?.type === "date" ? 12 : 6,
+          ...body.slice(0, 300).map((row) => String(row[c] ?? "").length + 1))),
+      }));
+      ws["!autofilter"] = { ref: X.utils.encode_range({ s: { r: hr, c: 0 }, e: { r: hr + Math.max(body.length, 1), c: head.length - 1 } }) };
+      X.utils.book_append_sheet(wb, ws, sh.name.slice(0, 31));
+    }
+    X.writeFile(wb, filename);
+  }
+
   function exportCsv() {
+    markDoubles(state.rows);
     const rows = sorted(filtered());
+    const D = { type: "date" };
     const cols = [
-      ["request_date", "Request Date"], ["request_by", "Request by"], ["no_po", "No PO"], ["customer", "Customer"],
-      ["project", "Project"], ["details", "Details"], ["cos", "COS"], ["posting_cos", "Nomor Posting COS"],
-      ["no_gp", "No. GP"], ["target", "Target kirim"], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["alasan_tunda", "Alasan belum bisa kirim"], ["progres", "Progres / Unit indent"], ["notes", "Notes"],
-      ["selesai", "Selesai (Admin)"], ["status", "Status"], ["age", "Umur (hari)"],
+      ["request_date", "Request Date", D], ["request_by", "Request by"], ["no_po", "No PO"], ["customer", "Customer"],
+      ["project", "Project"], ["details", "Details", { w: 40 }], ["cos", "COS"], ["posting_cos", "Nomor Posting COS"],
+      ["no_gp", "No. GP"], ["target", "Target kirim", D], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["alasan_tunda", "Alasan belum bisa kirim"],
+      ["progres", "Progres / Unit indent", { w: 40 }], ["notes", "Notes", { w: 40 }],
+      ["selesai", "Selesai (Admin)"], ["status", "Status"], ["age", "Umur (hari)"], ["dblText", "⚠ Kemungkinan double", { w: 60 }],
     ];
-    const q = (v) => { const s = v == null ? "" : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const val = (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : k === "kirimText" ? kirimText(r) : k === "targetSrc" ? (r.target ? (r.targetAuto ? "Otomatis 5 hari kerja" : "Manual") : "") : r[k]);
-    const csv = [cols.map((c) => c[1]).join(","), ...rows.map((r) => cols.map(([k]) => q(val(r, k))).join(","))].join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `selling-po-${isoToday()}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const get = (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : k === "kirimText" ? kirimText(r)
+      : k === "targetSrc" ? (r.target ? (r.targetAuto ? "Otomatis 5 hari kerja" : "Manual") : "")
+      : k === "dblText" ? (r.double ? r.dbl.join(" | ") : r.dbl.length ? "Sudah dicek, bukan double" : "") : r[k]);
+    renderPrintMeta(rows);
+    const filt = ($("#printMeta")?.textContent || "").split(" — ")[0].trim();
+    const stamp = `diekspor ${fmtDateTime(new Date().toISOString())} oleh ${me?.nama || me?.username || "-"}`;
+    const dbl = state.rows.filter((r) => r.dbl.length).sort((a, b) => normDoc(a.no_po).localeCompare(normDoc(b.no_po)));
+    exportXlsx(`selling-po-${isoToday()}.xlsx`, [
+      { name: "Selling PO", title: `Selling PO – ${rows.length} PO · ${stamp}${filt ? ` · ${filt}` : ""}`, cols, rows, get },
+      {
+        name: "Cek Double", title: `Kemungkinan COS / PO double – ${dbl.filter((r) => r.double).length} perlu dicek · ${stamp}`,
+        cols: [["no_po", "No PO"], ["customer", "Customer"], ["request_date", "Request Date", D], ["cos", "COS"], ["posting_cos", "Posting COS"],
+          ["no_gp", "No. GP"], ["selesai", "Selesai (Admin)"], ["dblText", "Peringatan", { w: 80 }], ["cekOk", "Sudah dicek admin"]],
+        rows: dbl,
+        get: (r, k) => (k === "dblText" ? r.dbl.join(" | ") : k === "cekOk" ? (r.cek_double_ok ? "Ya, bukan double" : "Belum") : k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : r[k]),
+      },
+    ]);
   }
 
   // ---------- Utils ----------
@@ -1067,15 +1192,15 @@
     ["status", "Status"], ["age", "Umur"],
   ];
   const VIEW_SECS = [
-    ["kpi", "Kotak KPI"], ["filters", "Filter & pencarian"], ["reminder", "Panel Reminder Pengiriman"], ["legend", "Legenda warna"],
+    ["kpi", "Kotak KPI"], ["filters", "Filter & pencarian"], ["legend", "Legenda warna"],
   ];
   let view = { cols: {}, secs: {} };
   function loadView() {
     try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "null"); if (v) view = { cols: v.cols || {}, secs: v.secs || {} }; } catch (_) { /* abaikan */ }
   }
   function saveView() { try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (_) { /* abaikan */ } }
-  // Progres/Notes: default otomatis (tampil di layar >= 1440px), kolom lain default tampil
-  const colOn = (k) => (k in view.cols ? view.cols[k] : k === "prog" ? window.innerWidth >= 1440 : true);
+  // Semua kolom default tampil (panel kanan sudah dihapus, kolom Progres/Notes muat di layar laptop)
+  const colOn = (k) => (k in view.cols ? view.cols[k] : true);
   const secOn = (k) => (k in view.secs ? view.secs[k] : true);
 
   function applyView() {
@@ -1089,8 +1214,6 @@
     $("#viewStyle").textContent = css;
     $("#kpis").hidden = !secOn("kpi");
     $("#filtersCard").hidden = !secOn("filters");
-    $("#reminder").hidden = !secOn("reminder");
-    $("#layout").classList.toggle("no-rem", !secOn("reminder"));
     $("#legendList").hidden = !secOn("legend") || state.tab !== "list";
     renderViewMenu();
   }
@@ -1126,7 +1249,7 @@
   }
 
   // Dipakai modul lain (purchase.js, tracker.js)
-  window.WM = { sb, me: () => me, toast, esc, msg, authError, isoToday, fmtDate, fmtDateShort, fmtDateTime, ICON };
+  window.WM = { sb, me: () => me, toast, esc, msg, authError, isoToday, fmtDate, fmtDateShort, fmtDateTime, ICON, exportXlsx };
 
   // ---------- Start ----------
   restoreState();

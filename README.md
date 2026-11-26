@@ -68,6 +68,18 @@ Isian dashboard, Ceklis Selesai, target kirim, dan alasan tidak pernah ditimpa; 
 tidak diimpor ulang; data dari email tanpa No PO yang jelas ditolak (dilaporkan "perlu cek") agar tidak ganda.
 Fungsi ini tidak bisa dipanggil dari browser.
 
+## Peringatan COS / PO double (tab 📦 Selling PO)
+Dashboard menandai **⚠ Double?** (KPI *Kemungkinan double*, chip filter, baris merah muda) bila:
+- No PO yang sama tercatat di lebih dari satu baris;
+- satu nomor COS (IH-SOTP/SONP-…) atau nomor posting COS (IH-SITP-…) dipakai lebih dari satu PO;
+- satu baris berisi lebih dari satu nomor COS (1 PO dengan 2 COS).
+Saat Tambah/Edit PO, admin diperingatkan sebelum menyimpan No PO / COS yang sudah dipakai. Bila memang bukan double
+(mis. 1 PO dikirim bertahap dengan 2 GP), buka View → **Sudah dicek, bukan double** (kolom `cek_double_ok`, berlaku untuk baris-baris terkait).
+
+## Laporan Excel
+Tombol **⬇ Excel** di setiap tab mengunduh `.xlsx` sesuai filter yang sedang aktif (tanggal sebagai tanggal Excel, auto-filter, judul & waktu ekspor):
+Selling PO (+ sheet *Cek Double*), PO Pembelian & Bayar (+ sheet *Tagihan*), COS Retur. Library SheetJS dimuat saat tombol diklik.
+
 ## PO Pembelian & Bayar (tab 🧾)
 Gabungan tracker PO Principal + pembayaran vendor: satu baris = satu PO ke principal/vendor, beserta tagihan & jadwal bayarnya
 (satu PO bisa punya beberapa tagihan: barang, freight, surveyor, bea cukai). Tagihan otomatis ditautkan ke PO lewat No PO (`find_po_id`).
