@@ -170,6 +170,7 @@
               <option value="later">Terjadwal (&gt; H-3)</option>
               <option value="tunda">Ditunda (ada alasan)</option>
               <option value="none">Tanpa Request date</option>
+              <option value="terkirim">Sudah terkirim (belum dicentang selesai)</option>
             </select>
             <input id="fFrom" type="date" title="Request date dari" />
             <input id="fTo" type="date" title="Request date sampai" />
@@ -570,7 +571,11 @@
         <label>Nomor posting COS<input name="posting_cos" /></label>
         <label>No. GP<input name="no_gp" /></label>
         <label class="hl">Target kirim <span class="hint">kosong = otomatis Request date + 5 hari kerja</span><input name="target_kirim" type="date" /></label>
-        <label class="span2">Alasan belum bisa dikirim <span class="hint">wajib bila target melewati 5 hari kerja</span><textarea name="alasan_tunda" rows="2" placeholder="mis. unit indent dari vendor, menunggu DP customer, site belum siap"></textarea></label>
+        <label>Rencana / status kirim <span class="hint">mis. PICKUP W1 Des</span><input name="rencana_kirim" /></label>
+        <label>BAST <span class="hint">tanggal atau minggu, mis. W2 Des</span><input name="bast" /></label>
+        <label>Estimasi biaya kirim (Rp)<input name="estimasi_biaya_kirim" inputmode="numeric" placeholder="mis. 350000" /></label>
+        <label class="check"><input name="terkirim" type="checkbox" /> Sudah terkirim / jasa selesai <span class="hint">(reminder kirim berhenti)</span></label>
+        <label class="span2">Alasan belum bisa dikirim <span class="hint">wajib bila target melewati 5 hari kerja (atau isi Rencana kirim)</span><textarea name="alasan_tunda" rows="2" placeholder="mis. unit indent dari vendor, menunggu DP customer, site belum siap"></textarea></label>
         <label class="span2">Progres / Unit indent<textarea name="progres" rows="2"></textarea></label>
         <label class="span2">Notes<textarea name="notes" rows="2"></textarea></label>
         <label class="check span2"><input name="selesai" type="checkbox" /> Ceklis Selesai (Admin) — PO sudah terkirim &amp; dokumen lengkap</label>

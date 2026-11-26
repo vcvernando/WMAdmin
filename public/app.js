@@ -7,7 +7,8 @@
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   const DAY = 86400000;
-  const FIELDS = ["request_date", "request_by", "no_po", "customer", "project", "details", "cos", "posting_cos", "no_gp", "target_kirim", "alasan_tunda", "progres", "notes", "selesai"];
+  const FIELDS = ["request_date", "request_by", "no_po", "customer", "project", "details", "cos", "posting_cos", "no_gp", "target_kirim", "rencana_kirim", "bast",
+    "estimasi_biaya_kirim", "alasan_tunda", "progres", "notes", "terkirim", "selesai"];
   const SLA_HARI_KERJA = 5; // target kirim otomatis = Request date + 5 hari kerja (Sen–Jum)
 
   // ---------- Supabase (sesi di localStorage bila "Remember me", selain itu sessionStorage) ----------
@@ -45,6 +46,8 @@
     soon:  { label: "H-1 s/d H-3",      color: "#a68a00", badge: "b-yellow" },
     tunda: { label: "Ditunda (ada alasan)", color: "#7a3ff2", badge: "b-purple" },
     none:  { label: "Tanpa Request date", color: "#5f6b7a", badge: "b-gray" },
+    later: { label: "Terjadwal (> H-3)", color: "#1f5eff", badge: "b-blue" },
+    terkirim: { label: "Sudah terkirim", color: "#1e8e4f", badge: "b-green" },
   };
 
   const state = {
@@ -303,7 +306,7 @@
     const targetAuto = !r.target_kirim && !!autoTarget;
     const tunda = !blank(r.alasan_tunda);
     let kirim = "", sisa = null;
-    if (listed && !r.selesai && !canceled) {
+    if (listed && !r.selesai && !canceled && !r.terkirim) {
       if (!target) kirim = "none";
       else {
         sisa = Math.round((new Date(target + "T00:00:00") - today) / DAY);
@@ -315,7 +318,7 @@
     if (ditolak) tone = "row-red";
     else if (aktif && cek) tone = "row-yellow";
 
-    const hay = [r.request_by, r.no_po, r.customer, r.project, r.details, r.cos, r.posting_cos, r.no_gp, r.progres, r.notes, status,
+    const hay = [r.request_by, r.no_po, r.customer, r.project, r.details, r.cos, r.posting_cos, r.no_gp, r.progres, r.notes, status, r.rencana_kirim, r.bast,
       target ? fmtDate(target) : "", r.alasan_tunda]
       .filter(Boolean).join(" \u0001 ").toLowerCase();
 
@@ -412,7 +415,7 @@
       if (!ignore.includes("month") && state.month && r.month !== state.month) return false;
       if (state.from && (!r.request_date || r.request_date < state.from)) return false;
       if (state.to && (!r.request_date || r.request_date > state.to)) return false;
-      if (state.kirim === "tunda" ? !(r.kirim && r.tunda) : state.kirim && r.kirim !== state.kirim) return false;
+      if (state.kirim === "terkirim" ? !(r.terkirim && !r.selesai) : state.kirim === "tunda" ? !(r.kirim && r.tunda) : state.kirim && r.kirim !== state.kirim) return false;
       for (const f of state.flags) {
         if (f === "noCos" && !(r.aktif && r.noCos)) return false;
         if (f === "noGp" && !(r.aktif && r.noGp)) return false;
@@ -695,7 +698,7 @@
             <span class="ell" title="COS ${esc(r.cos)}${r.posting_cos ? ` · posting ${esc(r.posting_cos)}` : ""}">${r.noCos ? `<span class="missing">COS belum</span>` : esc(r.cos)}</span>
             <span class="ell sub2" title="No. GP ${esc(r.no_gp)}">${r.noGp ? `<span class="missing">GP belum</span>` : `GP ${esc(r.no_gp)}`}</span></td>
         <td class="c-prog"><div class="clip2" title="${esc(prog)}">${prog ? esc(prog) : dash}</div></td>
-        <td class="c-target" title="${r.targetAuto ? `Otomatis: Request date + ${SLA_HARI_KERJA} hari kerja` : r.tunda ? `Ditunda: ${esc(r.alasan_tunda)}` : "Target manual"}">${r.target ? fmtDateShort(r.target) : dash}${r.targetAuto ? `<span class="sub2"> auto</span>` : ""}${r.kirim ? `<div>${kirimBadge(r)}${r.tunda ? ` <span class="badge b-purple">Ditunda</span>` : ""}</div>` : ""}</td>
+        <td class="c-target" title="${r.targetAuto ? `Otomatis: Request date + ${SLA_HARI_KERJA} hari kerja` : r.tunda ? `Ditunda: ${esc(r.alasan_tunda)}` : "Target manual"}">${r.target ? fmtDateShort(r.target) : dash}${r.targetAuto ? `<span class="sub2"> auto</span>` : ""}${r.kirim ? `<div>${kirimBadge(r)}${r.tunda ? ` <span class="badge b-purple">Ditunda</span>` : ""}</div>` : ""}${r.terkirim ? `<div><span class="badge b-green">✔ Terkirim</span></div>` : ""}${!blank(r.rencana_kirim) && !r.terkirim ? `<span class="ell sub2" title="Rencana kirim: ${esc(r.rencana_kirim)}">${esc(r.rencana_kirim)}</span>` : ""}${!blank(r.bast) ? `<span class="ell sub2" title="BAST">BAST ${/^\d{4}-\d{2}-\d{2}$/.test(r.bast) ? fmtDateShort(r.bast) : esc(r.bast)}</span>` : ""}</td>
         <td class="c-status"><span class="badge ${STATUS[r.status].badge}">${r.status}</span>${tags ? `<div class="tags">${tags}</div>` : ""}</td>
         <td class="num c-age ${r.age > 30 ? "age-old" : ""}">${r.age != null ? `${r.age}hr` : dash}</td>
         <td class="no-print"><div class="acts">
@@ -874,6 +877,10 @@
         ${f("Nomor posting COS", r.posting_cos)}
         ${f("No. GP", r.no_gp)}
         ${f("Target kirim", r.target ? `${fmtDate(r.target)}${r.targetAuto ? ` (otomatis, ${SLA_HARI_KERJA} hari kerja)` : " (manual)"}${r.kirim ? ` · ${kirimText(r)}` : ""}` : "")}
+        ${f("Rencana / status kirim", r.rencana_kirim)}
+        ${f("Terkirim", r.terkirim ? "✔ Sudah terkirim / jasa selesai" : "Belum")}
+        ${f("BAST", r.bast && /^\d{4}-\d{2}-\d{2}$/.test(r.bast) ? fmtDate(r.bast) : r.bast)}
+        ${f("Estimasi biaya kirim", r.estimasi_biaya_kirim != null ? `Rp ${Number(r.estimasi_biaya_kirim).toLocaleString("id-ID")}` : "")}
         ${f("Alasan belum bisa kirim", r.alasan_tunda)}
         ${f("Progres / Unit indent", r.progres)}
         ${f("Notes", r.notes)}
@@ -933,8 +940,13 @@
       else { const v = el.value.trim(); rec[k] = v === "" ? null : v; }
     });
     if (!rec.no_po && !rec.customer) return msg("#poMsg", "Isi minimal No PO atau Customer.");
+    if (rec.estimasi_biaya_kirim != null) {
+      const n = Number(String(rec.estimasi_biaya_kirim).replace(/[^\d,]/g, "").replace(",", "."));
+      if (!Number.isFinite(n)) return msg("#poMsg", "Estimasi biaya kirim harus angka, mis. 350000.");
+      rec.estimasi_biaya_kirim = n;
+    }
     const auto = rec.request_date ? addWorkdays(rec.request_date, SLA_HARI_KERJA) : null;
-    if (rec.target_kirim && auto && rec.target_kirim > auto && !rec.alasan_tunda) {
+    if (rec.target_kirim && auto && rec.target_kirim > auto && !rec.alasan_tunda && !rec.rencana_kirim) {
       return msg("#poMsg", `Target kirim melewati ${SLA_HARI_KERJA} hari kerja (maks. ${fmtDate(auto)}). Isi "Alasan belum bisa dikirim".`);
     }
     if (rec.selesai && (!rec.no_po || !rec.cos || !rec.no_gp)) {
@@ -1126,11 +1138,13 @@
     const cols = [
       ["request_date", "Request Date", D], ["request_by", "Request by"], ["no_po", "No PO"], ["customer", "Customer"],
       ["project", "Project"], ["details", "Details", { w: 40 }], ["cos", "COS"], ["posting_cos", "Nomor Posting COS"],
-      ["no_gp", "No. GP"], ["target", "Target kirim", D], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["alasan_tunda", "Alasan belum bisa kirim"],
+      ["no_gp", "No. GP"], ["target", "Target kirim", D], ["targetSrc", "Sumber target"], ["kirimText", "Reminder kirim"], ["rencana_kirim", "Rencana / status kirim"],
+      ["terkirimTxt", "Terkirim"], ["bast", "BAST"], ["estimasi_biaya_kirim", "Estimasi biaya kirim", { type: "num" }], ["alasan_tunda", "Alasan belum bisa kirim"],
       ["progres", "Progres / Unit indent", { w: 40 }], ["notes", "Notes", { w: 40 }],
       ["selesai", "Selesai (Admin)"], ["status", "Status"], ["age", "Umur (hari)"], ["dblText", "⚠ Kemungkinan double", { w: 60 }],
     ];
-    const get = (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : k === "kirimText" ? kirimText(r)
+    const get = (r, k) => (k === "selesai" ? (r.selesai ? "Ya" : "Tidak") : k === "kirimText" ? kirimText(r) : k === "terkirimTxt" ? (r.terkirim ? "Ya" : "")
+      : k === "estimasi_biaya_kirim" ? (r.estimasi_biaya_kirim == null ? null : Number(r.estimasi_biaya_kirim))
       : k === "targetSrc" ? (r.target ? (r.targetAuto ? "Otomatis 5 hari kerja" : "Manual") : "")
       : k === "dblText" ? (r.double ? r.dbl.join(" | ") : r.dbl.length ? "Sudah dicek, bukan double" : "") : r[k]);
     renderPrintMeta(rows);
